@@ -51,7 +51,8 @@ export class ToyDebris {
     transform.decompose(root.position, root.quaternion, root.scale);
     const worldOrigin = source.getWorldPosition(new THREE.Vector3()), worldScale = source.getWorldScale(new THREE.Vector3()).y;
     if (!Number.isFinite(worldScale) || worldScale <= 0) return null;
-    const floor = (this.groundY - worldOrigin.y) / worldScale;
+    const groundY = Number.isFinite(source.userData.groundY) ? source.userData.groundY as number : this.groundY;
+    const floor = (groundY - worldOrigin.y) / worldScale;
     const pieces: Piece[] = [], chunks = new THREE.Group(), materials = new Map<THREE.Material, THREE.Material>(), rng = seeded(seed), infantry = source.userData.kind === 'infantry';
     root.add(chunks); const fallen = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
     source.traverse(object => {

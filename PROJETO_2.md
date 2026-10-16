@@ -26,8 +26,8 @@ As regras foram alinhadas antes do protótipo. O usuário depois autorizou sua i
 
 | Tema | Estado |
 | --- | --- |
-| Separação dos projetos | Concluída: Projeto 1 preservado e Projeto 2 com Git local separado |
-| Etapa atual | Protótipo local com miniaturas implementado; 22 testes e build Next aprovados, verificação visual executada |
+| Separação dos projetos | Concluída: Projeto 1 preservado; Projeto 2 usa repositório independente `LaioBomfimDev/teste3d` |
+| Etapa atual | Protótipo web e planta 3D disponíveis; Vercel preparada para importar o repositório. Campanha pública e serviços compartilhados continuam pendentes |
 | Horário e duração | Direção do usuário: diariamente às 22h de Brasília; 5–10 minutos |
 | Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |
 | Vencedor nacional | Reconfirmado: maior força militar total em uma única batalha nacional |
@@ -78,15 +78,17 @@ O usuário reconfirmou a vitória por força militar total após esclarecer a co
 - Como equilibrar tamanhos de time, resolver empates e permitir trocar de time?
 - O ponto da base representa apenas o estado ou também uma cidade opcional? O novo formato não fornece cidade; não reutilizar automaticamente o parser de municípios.
 - Transmissão no próprio site ou também vídeo em uma live do Instagram?
-- Nome público, conta Instagram, post oficial, orçamento, domínio e repositório remoto do Projeto 2.
+- Nome público, conta Instagram, post oficial, orçamento, domínio e projeto da Vercel do Projeto 2.
 
 ## Estado real da implementação
 
 - Clone local separado do Projeto 1, baseado no commit `c9da86d`.
 - Código e modelos de imóveis herdados preservados como legado; a home ativa agora usa mapa, bases e unidades de guerra próprios.
-- Projeto 2 identificado no pacote/documentação e no título da aba. Configuração atual sem `project_id` Sites e sem Git remote.
+- Projeto 2 identificado no pacote/documentação e no título da aba. Remote Git independente: `https://github.com/LaioBomfimDev/teste3d.git`; sem `project_id` Sites.
 - Não foram copiados banco local, dados de participação, variáveis de ambiente, credenciais, dependências instaladas ou caches.
 - Implementados localmente exércitos, simulador de comentário/time, pontos com teto experimental, compras manuais, batalha visual por semente, cores estaduais, resultados e persistência no navegador. Não há scheduler, autenticação do dono da conta ou batalha compartilhada de produção. Nenhuma automação Codex ou campanha foi criada.
+- `/cozinha-3d` é um editor 3D de cômodo 4 × 6 m, com peças movíveis, paredes alternáveis e salvamento local/exportação JSON.
+- Build Vercel configurada na raiz do repositório, com Next.js, `npm ci`, `npm run build:vercel`, detecção padrão de saída e Node.js 22.x. A configuração não publica uma batalha autoritativa nem torna compartilhado o estado de jogo.
 - `/arsenal` agora apresenta as cinco miniaturas próprias, cores vermelha/azul, teste de explosão e downloads GLB/ZIP. A prévia anterior foi preservada em `app/arsenal/legacy-preview.tsx`.
 - Explosão integrada usa atlas transparente original de 32 quadros. Modelos GLB das unidades ficam em `public/war-assets/models/`; os imóveis herdados continuam em `public/models/`. Proveniência em [ASSETS.md](public/war-assets/ASSETS.md).
 - Estudos gratuitos de arte (arquivos na saída do PixelLab; não integrados ao repositório; sem créditos de geração): [sprite de tanque](https://api.pixellab.ai/mcp/pixel-tools/cb1c54a7-7680-4035-99ac-f585b2b6a740/assets/topdown/full.png), [folha de infantaria/drone/artilharia/apoio aéreo](https://api.pixellab.ai/mcp/pixel-tools/f84da9b4-4b81-4dbe-a5ec-bea2ec9b1d60/assets/units/full.png), [GIF de explosão de área](https://api.pixellab.ai/mcp/pixel-tools/0f60cb3e-a511-4df1-b795-54b4659bebff/projeto2-explosao-area-drone.gif).

@@ -1,3 +1,4 @@
+import { awardPoints, ledgerOf, SOCIAL_RULES, validLedger, type PointLedger } from './points.ts';
 // Experimental values for the local prototype, not approved campaign rules.
 export type Team = 'red' | 'blue';
 export type UnitKind = 'infantry' | 'tank' | 'artillery' | 'drone' | 'aircraft';
@@ -26,7 +27,7 @@ export const STATES = [
   { id: '51', uf: 'MT', name: 'Mato Grosso', lng: -56, lat: -13 }, { id: '52', uf: 'GO', name: 'Goiás', lng: -49.7, lat: -16 },
   { id: '53', uf: 'DF', name: 'Distrito Federal', lng: -47.8, lat: -15.75 },
 ] as const;
-export type Base = { id: string; username: string; uf: string; team: Team; inventory: Inventory; credits: number; joinedAt: string; commentDay: string; rewardedComments: number };
+export type Base = { id: string; username: string; uf: string; team: Team; inventory: Inventory; credits: number; joinedAt: string; commentDay: string; rewardedComments: number; progress?: PointLedger };
 export type Control = Record<string, Team | 'neutral'>;
 export type BattleRecord = { id: string; at: string; winner: Team | 'draw'; red: number; blue: number; controls: Control };
 export type GameState = { version: 1; bases: Base[]; receipts: string[]; history: BattleRecord[] };
@@ -61,11 +62,18 @@ export function registerComment(game: GameState, text: string, commentId: string
   let base = game.bases.find(b => b.username === parsed.username);
   if (base && (base.uf !== parsed.uf || base.team !== parsed.team)) throw Error('Este perfil já tem uma base. Nesta prévia, estado e time permanecem os mesmos.');
   if (!base && game.bases.length >= 1000) throw Error('Limite de bases desta demonstração atingido.');
-  base = base ? { ...base, inventory: { ...base.inventory } } : { ...parsed, id: `local-${parsed.username}`, inventory: { ...emptyInventory(), infantry: 3 }, credits: 0, joinedAt: new Date(now).toISOString(), commentDay: day, rewardedComments: 0 };
+  const first = !base;
+  base = base ? { ...base, inventory: { ...base.inventory } } : { ...parsed, id: `local-${parsed.username}`, inventory: { ...emptyInventory(), infantry: 3 }, credits: 0, joinedAt: new Date(now).toISOString(), commentDay: day, rewardedComments: 0, progress: { entries: [] } };
   if (base.commentDay !== day) { base.commentDay = day; base.rewardedComments = 0; }
   const awarded = base.rewardedComments < RULES.dailyCommentCap;
-  if (awarded) { base.credits += RULES.pointsPerComment; base.rewardedComments++; }
-  return { game: { ...game, bases: [...game.bases.filter(b => b.id !== base.id), base], receipts: [...game.receipts, commentId] }, base, awarded, duplicate: false };
+  if (awarded) { base = awardPoints(base, { key: `comment:${commentId}`, kind: first ? 'arrival' : 'comment', points: RULES.pointsPerComment, at: new Date(now).toISOString() }); base.rewardedComments++; }
+  let members = game.bases.filter(b => b.id !== base.id);
+  if (first) {
+    const referrals = members.flatMap(owner => ledgerOf(owner).entries.filter(e => e.kind === 'mention' && e.subject === parsed.username && Date.parse(e.at) <= now).map(entry => ({ owner, entry }))).sort((a, b) => Date.parse(a.entry.at) - Date.parse(b.entry.at) || a.entry.key.localeCompare(b.entry.key));
+    const referral = referrals[0];
+    if (referral && ledgerOf(referral.owner).entries.filter(e => e.kind === 'recruit' && dayInBrazil(Date.parse(e.at)) === day).length < SOCIAL_RULES.recruitsPerDay) members = members.map(owner => owner.id === referral.owner.id ? awardPoints(owner, { key: `recruit:${parsed.username}`, kind: 'recruit', points: SOCIAL_RULES.recruit, at: new Date(now).toISOString(), subject: parsed.username }) : owner);
+  }
+  return { game: { ...game, bases: [...members, base], receipts: [...game.receipts, commentId] }, base, awarded, duplicate: false };
 }
 export function buyUnit(game: GameState, baseId: string, kind: UnitKind, locked = false): GameState {
   if (locked) throw Error('A batalha já começou. Monte seu exército após o resultado.');
@@ -73,7 +81,7 @@ export function buyUnit(game: GameState, baseId: string, kind: UnitKind, locked 
   if (!unit || !base) throw Error('Base ou equipamento não encontrado.');
   if (base.credits < unit.cost) throw Error('Faltam pontos para esse equipamento.');
   if (base.inventory[kind] >= 10000) throw Error('Limite deste equipamento atingido.');
-  return { ...game, bases: game.bases.map(b => b.id === baseId ? { ...b, credits: b.credits - unit.cost, inventory: { ...b.inventory, [kind]: b.inventory[kind] + 1 } } : b) };
+  return { ...game, bases: game.bases.map(b => b.id === baseId ? { ...b, progress: ledgerOf(b), credits: b.credits - unit.cost, inventory: { ...b.inventory, [kind]: b.inventory[kind] + 1 } } : b) };
 }
 export function randomFrom(seed: number) { let value = seed >>> 0; return () => { value = (value * 1664525 + 1013904223) >>> 0; return value / 4294967296; }; }
 export function makeBattle(game: GameState, seed: number, now: number): Battle {
@@ -111,6 +119,7 @@ export function validateSaved(value: unknown): GameState | null {
   for (const b of game.bases) {
     if (!b || typeof b.id !== 'string' || b.id.length > 80 || typeof b.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(b.username) || ids.has(b.id) || names.has(b.username) || !STATES.some(s => s.uf === b.uf) || !['red', 'blue'].includes(b.team) || !Number.isSafeInteger(b.credits) || b.credits < 0 || b.credits > 10000000 || !Number.isInteger(b.rewardedComments) || b.rewardedComments < 0 || b.rewardedComments > RULES.dailyCommentCap || typeof b.commentDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.commentDay) || typeof b.joinedAt !== 'string' || !Number.isFinite(Date.parse(b.joinedAt)) || !b.inventory || !CATALOG.every(u => Number.isInteger(b.inventory[u.kind]) && b.inventory[u.kind] >= 0 && b.inventory[u.kind] <= 10000)) return null;
     ids.add(b.id); names.add(b.username);
+    if (b.progress !== undefined && !validLedger(b.progress)) return null;
   }
   if (!game.receipts.every(id => typeof id === 'string' && id.length > 0 && id.length <= 200) || new Set(game.receipts).size !== game.receipts.length) return null;
   if (!game.history.every(h => h && typeof h.id === 'string' && typeof h.at === 'string' && Number.isFinite(Date.parse(h.at)) && ['red', 'blue', 'draw'].includes(h.winner) && Number.isSafeInteger(h.red) && h.red >= 0 && Number.isSafeInteger(h.blue) && h.blue >= 0 && h.controls && STATES.every(s => ['red', 'blue', 'neutral'].includes(h.controls[s.uf])))) return null;

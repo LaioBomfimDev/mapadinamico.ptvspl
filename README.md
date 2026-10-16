@@ -1,20 +1,37 @@
-# Projeto 2
+# Projeto 2 — Brasil em Batalha
 
-Clone independente do Projeto 1 (Brasil em Casas), criado para explorar bases e batalhas no mapa do Brasil.
+Protótipo web em Next.js com mapa 3D do Brasil, bases militares, miniaturas de unidades e uma batalha demonstrativa. Este repositório é independente do Projeto 1.
 
-A ideia e a distinção entre direção do usuário, propostas e trabalho implementado estão em [PROJETO_2.md](PROJETO_2.md).
+## Rodar localmente
 
-**Estado atual:** cópia funcional do mapa original, ainda com imóveis e regras de prefeitura. A batalha não foi implementada nesta etapa. Não há banco, conta Instagram, Site ou repositório remoto vinculados a este clone.
-
-## Executar a base local
-
-Node.js 22.x ou superior compatível. O clone não copia dependências instaladas ou credenciais.
+Requer Node.js 22.x e npm.
 
 ```sh
 npm ci
 npm run dev:vercel -- --hostname 127.0.0.1 --port 5179
 ```
 
-Sem variáveis de banco, abre a demonstração visual sem salvar moradores. Para validar o build Next.js: `npm run build:vercel`. As credenciais futuras devem pertencer ao Projeto 2; não reutilizar o banco do Projeto 1 automaticamente.
+Abra `http://127.0.0.1:5179`. A página `/cozinha-3d` abre o editor 3D da cozinha de 4 × 6 m.
 
-A documentação técnica herdada está em [README_BASE_MAPA.md](README_BASE_MAPA.md). As regras e nomes de casas presentes nessa documentação descrevem a base anterior, não requisitos aprovados para a batalha.
+## Vercel
+
+O projeto usa a raiz deste repositório, Next.js e o comando `npm run build:vercel`, definidos em `vercel.json`. A configuração deixa a Vercel determinar a saída padrão do Next.js. `package.json` fixa o runtime em Node 22.x. Consulte [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md) para importar o repositório e configurar variáveis opcionais.
+
+## Estado do produto
+
+- A batalha e as bases de demonstração são executadas no navegador e salvas no `localStorage` daquele navegador. Não há estado compartilhado entre visitantes.
+- Não há scheduler de produção para iniciar batalhas às 22h, autenticação de participantes, validação de comentários do Instagram ou serviço autoritativo de batalha.
+- A integração D1 e as rotas de moradores herdadas ainda existem, mas não fornecem persistência às bases do jogo.
+- A planta 3D da cozinha também salva neste navegador; a exportação baixa um arquivo JSON.
+
+O deploy publica uma demonstração web. Ele não ativa campanha pública nem transforma os dados locais do jogo em um serviço multiplayer.
+
+## Desenvolvimento e verificações
+
+```sh
+npm run build:vercel
+npm run typecheck:vercel
+node --test tests/war-game.test.mjs tests/war-base-camp.test.mjs tests/war-assets.test.mjs
+```
+
+Os valores do jogo continuam experimentais. As decisões e pendências estão em [PROJETO_2.md](PROJETO_2.md).

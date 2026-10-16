@@ -6,6 +6,7 @@ import { createUnit, animateUnit } from '../lib/war/unit-models';
 import { WarEffects } from '../lib/war/vfx';
 import { ToyDebris } from '../lib/war/destruction';
 import { createTeamBadge, faceTeamBadge } from '../lib/war/team-badges';
+import { createBaseCamp, CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp';
 import { baseLots, clippedStreet, projectedState, project, stateBounds, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind } from '../lib/war/game';
 
@@ -56,9 +57,10 @@ export default function WarWorld(props: Props) {
           const base = latest.current.bases.find(b => b.id === id), state = r.geographies.find(s => s.uf === (uf || base?.uf));
           let p = id ? r.positions.get(id)?.clone() : undefined;
           if (!p && state) { const b = stateBounds(state); p = new THREE.Vector3((b.minX + b.maxX) / 2, .7, (b.minZ + b.maxZ) / 2); camera.zoom = Math.min(24, 35 / Math.max(b.maxX - b.minX, b.maxZ - b.minZ)); }
-          else if (p) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 16 / size); }
+          else if (p) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 22 / size); }
           if (!p) return;
-          if (container.clientWidth < 680 && id) p.z += 25 / camera.zoom;
+          if (id && container.clientWidth < 680) p.z += 44 / camera.zoom;
+          else if (id) p.x -= (camera.right - camera.left) / camera.zoom * Math.min(.25, 220 / container.clientWidth);
           orbit.target.copy(p); camera.position.copy(p).add(new THREE.Vector3(0, 78, 47)); camera.updateProjectionMatrix(); orbit.update(); draw();
         } };
         runtime.current = owned;
@@ -90,7 +92,7 @@ export default function WarWorld(props: Props) {
         renderer.domElement.addEventListener('pointerdown', down); renderer.domElement.addEventListener('pointerup', up); cleanup = () => { renderer.domElement.removeEventListener('pointerdown', down); renderer.domElement.removeEventListener('pointerup', up); };
         let previous = 0; const frustum = new THREE.Frustum(), projection = new THREE.Matrix4(), bounds = new THREE.Sphere();
         const impacts: { source: string; target: string; at: number; index: number }[] = [];
-        const ensureModels = (group: THREE.Group) => { if (group.userData.models.length) return; (group.userData.kinds as { kind: UnitKind }[]).forEach((unit, index) => { const model = createUnit(unit.kind, group.userData.team); const size = group.userData.size; model.scale.setScalar(size * .22); model.position.set((index === 4 ? 0 : index % 2 ? .24 : -.2) * size, .055, (index === 4 ? 0 : index < 2 ? -.1 : .3) * size); model.rotation.y = -.25; model.userData.visualKey = `${group.userData.baseId}:${unit.kind}`; group.add(model); group.userData.models.push(model); }); };
+        const ensureModels = (group: THREE.Group) => { if (group.userData.models.length) return; (group.userData.kinds as { kind: UnitKind }[]).forEach(unit => { const model = createUnit(unit.kind, group.userData.team), size = group.userData.size, slot = CAMP_SLOTS[unit.kind]; model.scale.setScalar(size * slot.scale); model.position.set(slot.x * size, CAMP_SURFACE_Y * size, slot.z * size); model.userData.visualKey = `${group.userData.baseId}:${unit.kind}`; model.userData.groundY = group.position.y + CAMP_SURFACE_Y * size; group.add(model); group.userData.models.push(model); }); };
         const animate = (time: number) => {
           if (cancelled) return; raf = requestAnimationFrame(animate); if (document.hidden || time - previous < 33) return;
           const dt = Math.min((time - previous) / 1000, .1); previous = time; const current = latest.current; if (current.suspended) return; let dirty = orbit.update();
@@ -137,15 +139,12 @@ export default function WarWorld(props: Props) {
       const members = props.bases.filter(b => b.uf === state.uf); if (!members.length) continue;
       const lots = baseLots(state, members.length), streets = new Set<string>();
       members.forEach((base, i) => {
-        const lot = lots[i], size = Math.min(lot.size, 2.3), halfStep = lot.size / .68 / 2;
+        const lot = lots[i], size = Math.min(lot.size, 2.3), halfStep = lot.spacing / 2;
         for (const x of [lot.x - halfStep, lot.x + halfStep]) streets.add(`z:${x}`); for (const z of [lot.z - halfStep, lot.z + halfStep]) streets.add(`x:${z}`);
         const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, size, team: base.team, models: [], kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
-        const ground = new THREE.Mesh(new THREE.BoxGeometry(size, .05, size), new THREE.MeshStandardMaterial({ color: base.team === 'red' ? '#ead1b6' : '#c4d8ca', roughness: 1 })); ground.position.y = .025; ground.receiveShadow = true; group.add(ground);
-        const fence = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size / 2, .07, -size / 2), new THREE.Vector3(size / 2, .07, -size / 2), new THREE.Vector3(size / 2, .07, size / 2), new THREE.Vector3(-size / 2, .07, size / 2)]), new THREE.LineBasicMaterial({ color: base.team === 'red' ? '#b35049' : '#3d72a5' })); group.add(fence);
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(size * .012, size * .012, size * .65, 6), new THREE.MeshStandardMaterial({ color: '#e8e6d6' })); pole.position.set(-size * .38, size * .34, -size * .34); group.add(pole);
-        const flag = new THREE.Mesh(new THREE.BoxGeometry(size * .28, size * .18, size * .015), new THREE.MeshStandardMaterial({ color: base.team === 'red' ? '#e65c50' : '#4389cc', roughness: 1 })); flag.position.set(-size * .25, size * .56, -size * .34); group.add(flag); group.userData.decorations = [ground, fence, pole, flag];
+        const camp = createBaseCamp(base.team, size); group.add(camp); group.userData.decorations = [camp];
         const marker = createTeamBadge(base.team); marker.scale.setScalar(1.8); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
-        const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.35, .08), true); name.position.set(0, size * .22, size * .88); name.visible = false; group.add(name); group.userData.name = name;
+        const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.35, .08), true); name.position.set(0, size * .18, size * .86); name.visible = false; group.add(name); group.userData.name = name;
         r.bases.add(group); r.groups.set(base.id, group);
       });
       for (const street of streets) { const [axis, raw] = street.split(':'); for (const [a, b] of clippedStreet(state, axis as 'x' | 'z', Number(raw))) { const length = Math.hypot(b[0] - a[0], b[1] - a[1]), width = Math.min(lots[0].size * .13, .11); const road = new THREE.Mesh(new THREE.BoxGeometry(axis === 'x' ? length : width, .012, axis === 'x' ? width : length), new THREE.MeshStandardMaterial({ color: '#d6d0af', roughness: 1 })); road.position.set((a[0] + b[0]) / 2, .666, (a[1] + b[1]) / 2); road.receiveShadow = true; road.userData.street = true; r.bases.add(road); } }

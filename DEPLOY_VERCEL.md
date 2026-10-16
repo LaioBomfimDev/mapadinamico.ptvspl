@@ -1,69 +1,60 @@
-# Produção na Vercel
+# Publicar o Projeto 2 na Vercel
 
-O repositório `LaioBomfimDev/comentemapa` contém o site na raiz. A build anterior era Vinext/Cloudflare (`dist/server`), por isso a Vercel não encontrava `.next/routes-manifest.json`. A produção na Vercel agora usa Next.js real, sem desativar as rotas de backend ou exportar apenas HTML estático.
+O repositório contém um app Next.js na raiz. A configuração em `vercel.json` seleciona Next.js, `npm ci` e `npm run build:vercel`; o diretório de saída fica sob a detecção padrão do framework.
 
-## Configurar o projeto
+## Importar o repositório
 
-Em **Settings → Build and Deployment**:
+Na Vercel, crie um projeto e importe `LaioBomfimDev/teste3d` com estas opções:
 
-| Campo | Valor |
+| Opção | Valor |
 | --- | --- |
 | Framework Preset | Next.js |
-| Root Directory | deixar vazio (raiz do repositório) |
+| Root Directory | `.` (raiz do repositório) |
 | Build Command | `npm run build:vercel` |
-| Output Directory | `.next` (ou automático do Next.js) |
 | Install Command | `npm ci` |
-| Node.js | 22.x |
+| Output Directory | padrão do Next.js, sem override |
+| Node.js Version | 22.x |
 
-`vercel.json` já declara framework, comandos e diretório. Remova overrides antigos como `dist`, `out`, `vinext build` ou o diretório do monorepo Godot. Não é necessário `turbo.json`. Faça **Redeploy** do commit novo; se a falha anterior persistir, refaça sem o cache de build.
+O `package.json` seleciona Node 22.x para evitar que a Vercel interprete `>=22.13.0` como compatível com sua versão padrão mais nova. A documentação atual da Vercel lista 24.x como padrão e indica `22.x` para escolher a linha 22.[Node.js na Vercel](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions).
 
-Sem credenciais, `/`, `/?cidade=salvador`, `/modelos`, busca de cidades e downloads 3D funcionam em demonstração. O mapa informa `storage.mode: demo`, não grava moradores e não simula uma conexão Instagram.
+O comando `build:vercel` usa o Next.js instalado e gera o app com a saída padrão do framework. A build não precisa de credenciais Cloudflare ou Instagram para publicar a demonstração.
 
-## Banco persistente
+## Variáveis opcionais
 
-O schema existente continua em Cloudflare D1. As funções Node.js da Vercel acessam a API HTTP oficial do D1 pelo servidor, com consultas parametrizadas e lotes. O banco privado gerenciado pelo Sites não é transferido automaticamente; use um D1 da sua conta Cloudflare. Não use SQLite local ou arquivos no disco temporário das funções como banco de produção.
+Não configure nenhuma variável para publicar e experimentar o mapa de batalha local no navegador. Para usar as rotas herdadas de moradores com D1, configure apenas no servidor de produção:
 
-1. Criar um banco D1 na conta Cloudflare.
-2. Aplicar, nessa ordem, os SQLs completos de `drizzle/0000_parallel_patriot.sql` e `drizzle/0001_kind_gertrude_yorkes.sql` pelo console D1. Aplicar a 0000 somente em um banco novo; preservar o histórico em bancos existentes.
-3. Criar um API token Cloudflare com permissão **Account → D1 → Edit**, limitado à conta necessária.
-4. Em **Vercel → Settings → Environment Variables**, cadastrar:
-
-| Variável | Conteúdo |
+| Variável | Finalidade |
 | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | ID da conta Cloudflare |
+| `CLOUDFLARE_ACCOUNT_ID` | Conta Cloudflare que contém o banco D1 |
 | `CLOUDFLARE_D1_DATABASE_ID` | UUID do banco D1 |
-| `CLOUDFLARE_D1_API_TOKEN` | Token para leitura/escrita do D1 |
-| `MAP_ADMIN_TOKEN` | Opcional: segredo aleatório de pelo menos 32 caracteres para a API administrativa |
+| `CLOUDFLARE_D1_API_TOKEN` | Token Cloudflare com permissão D1 necessária |
+| `MAP_ADMIN_TOKEN` | Opcional; Bearer token aleatório com pelo menos 32 caracteres para rotas administrativas |
 
-Usar **Production**; previews devem apontar para um banco separado, se habilitados. Reimplantar após configurar as variáveis. Nunca colocar credenciais em `NEXT_PUBLIC_*`, commits, capturas ou mensagens. O arquivo `.env.vercel.example` contém apenas campos vazios; para teste local, copiar para `.env.local`.
+Nunca use prefixo `NEXT_PUBLIC_` nessas credenciais. O arquivo `.env.vercel.example` contém valores vazios. Pré-visualizações devem usar um banco separado ou não receber credenciais.
 
-Depois de conectar o banco, `/api/map` deve retornar 200 com `storage.configured: true` e `storage.mode: ready`. Configuração parcial, token inválido ou schema ausente retornam erro; isso não é tratado como mapa vazio. Nenhuma migração é aplicada durante requisições ou build.
+Instagram permanece desligado até configurar uma integração verificada. Variáveis como `INSTAGRAM_APP_SECRET` e `INSTAGRAM_VERIFY_TOKEN` não iniciam uma campanha sozinhas.
 
-## Administração e Instagram
+## O que o deploy disponibiliza
 
-Na Vercel, o login ChatGPT do Sites não existe. Os cabeçalhos de identidade do Sites são ignorados. Cadastro manual, revisão de comentários, remoção e ajuste de pontos exigem `Authorization: Bearer <MAP_ADMIN_TOKEN>` na API. O token permanece apenas no servidor ou na ferramenta administrativa; não há formulário de login administrativo na interface da Vercel nesta entrega. Participantes não precisam desse token: comentários válidos chegam pelo webhook assinado da Meta.
+- `/`: protótipo de batalha no cliente. Bases, compras e resultados ficam no `localStorage` de cada navegador e não sincronizam entre visitantes.
+- `/arsenal`: galeria de miniaturas 3D.
+- `/cozinha-3d`: editor 3D local de cozinha 4 × 6 m. O salvamento é por navegador; exporta JSON.
+- `/api/map` e rotas herdadas: dependem de D1 para dados reais de moradores.
 
-Instagram pode continuar desligado até a escolha da conta/post. Quando prontos, configurar também `INSTAGRAM_APP_SECRET`, `INSTAGRAM_VERIFY_TOKEN`, `INSTAGRAM_ACCOUNT_ID`, `INSTAGRAM_MEDIA_IDS` e, opcionalmente, `INSTAGRAM_PROFILE`. O callback será `https://SEU-DOMINIO/api/instagram/webhook`; os demais passos estão em [INTEGRACAO_INSTAGRAM.md](INTEGRACAO_INSTAGRAM.md). Ainda é necessário validar um comentário real; deploy bem-sucedido não comprova conexão com Instagram.
+O Projeto 2 ainda não tem batalha compartilhada autoritativa, scheduler diário, autenticação de perfis ou confirmação de participação do Instagram. Publicar agora coloca a demonstração online; esses serviços ainda precisam ser construídos antes de uma campanha pública.
 
-## Verificação local
+## Arquivos grandes
+
+O arquivo fonte local `data/BR_Municipios_2025.zip` tem aproximadamente 237 MB, não é usado pela aplicação e está excluído do Git. Isso também evita exceder o limite de 100 MB de arquivos-fonte enviados pelo CLI nos projetos Hobby da Vercel. Os arquivos preparados `public/brazil-municipalities*.geojson` permanecem no repositório; não são usados pelas rotas atuais. Consulte [limites da Vercel](https://vercel.com/docs/limits#static-file-uploads).
+
+## Verificação antes de publicar
+
+Na raiz do projeto:
 
 ```sh
 npm ci
 npm run build:vercel
 npm run typecheck:vercel
-npm run start:vercel -- --hostname 127.0.0.1 --port 5178
-node --test tests/vercel.test.mjs tests/migrations.test.mjs
-node tests/integration.mjs
-node tests/integration.mjs --vercel
-node tests/next-production-smoke.mjs http://127.0.0.1:5178
 ```
 
-O build deve gerar `.next/routes-manifest.json` e listar as rotas `/api/map`, `/api/houses`, `/api/admin`, `/api/instagram/webhook` e `/modelos`. O fluxo Sites/Cloudflare continua usando `npm run build` fora da Vercel; com `VERCEL=1`, esse comando também seleciona Next.js.
-
-Ao alternar entre builds Sites e Next.js no mesmo checkout, use `npm run typecheck:vercel` para regenerar os tipos do Next antes do TypeScript. A versão instalada do Vinext escreve seus próprios tipos em `.next/types/routes.d.ts`; misturá-los com o validador gerado pelo Next causa erro de tipos até a regeneração. Isso não exige mudar a saída `.next` da Vercel ou ignorar erros de TypeScript.
-
-Referências oficiais: [Next.js na Vercel](https://vercel.com/docs/frameworks/full-stack/nextjs), [API de consultas D1](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/).
-
-## Evidência desta entrega (2026-10-16)
-
-Build Next.js 16.3.4 aprovado, manifesto `.next/routes-manifest.json` gerado e rotas dinâmicas listadas. Build Vinext/Cloudflare também aprovado. 43 verificações de integração passaram com binding Sites e outras 43 usando o adaptador HTTP D1 em SQLite isolado; seis testes específicos da Vercel e dois de migração aprovados. O smoke usa o servidor Next em modo produção, sem credenciais externas. Não foi executado deploy na conta Vercel do usuário nem teste contra D1/Instagram reais.
+Depois da importação, confira o log do primeiro deploy. Nenhum deploy foi iniciado por este repositório local.

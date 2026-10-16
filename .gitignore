@@ -61,3 +61,6 @@ next-env.d.ts
 # Cloudflare local credentials
 /.dev.vars
 /.dev.vars.*
+
+# Large local IBGE source archive (237 MB); not needed by the deployed app.
+/data/BR_Municipios_2025.zip

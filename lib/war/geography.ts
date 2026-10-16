@@ -16,13 +16,13 @@ export function stateBounds(state: StateGeometry) {
   return { minX: Math.min(...ring.map(p => p[0])), maxX: Math.max(...ring.map(p => p[0])), minZ: Math.min(...ring.map(p => p[1])), maxZ: Math.max(...ring.map(p => p[1])) };
 }
 // Row-major lots on a rectangular street grid. Every corner must be inside the UF.
-export function baseLots(state: StateGeometry, required: number): { x: number; z: number; size: number }[] {
+export function baseLots(state: StateGeometry, required: number): { x: number; z: number; size: number; spacing: number }[] {
   const b = stateBounds(state), width = b.maxX - b.minX, height = b.maxZ - b.minZ;
   for (const density of [4, 8, 16, 32, 64, 128]) {
-    const step = Math.min(width, height) / density, size = step * .68, lots: { x: number; z: number; size: number }[] = [];
+    const step = Math.min(width, height) / density, size = step * .46, lots: { x: number; z: number; size: number; spacing: number }[] = [];
     for (let z = b.minZ + step / 2; z < b.maxZ && lots.length < 15000; z += step) for (let x = b.minX + step / 2; x < b.maxX && lots.length < 15000; x += step) {
-      const half = size / 2;
-      if ([[-half, -half], [half, -half], [-half, half], [half, half], [0, 0]].every(([dx, dz]) => insideState([x + dx, z + dz], state))) lots.push({ x, z, size });
+      const halfX = size * .64, halfZ = size * .59;
+      if ([[-halfX, -halfZ], [halfX, -halfZ], [-halfX, halfZ], [halfX, halfZ], [0, 0]].every(([dx, dz]) => insideState([x + dx, z + dz], state))) lots.push({ x, z, size, spacing: step });
     }
     if (lots.length >= required) {
       const centerX = (b.minX + b.maxX) / 2, centerZ = (b.minZ + b.maxZ) / 2;
