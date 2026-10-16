@@ -1,2 +1,2 @@
-import MapApp from './map-app';
-export default function Home() { return <MapApp />; }
+import WarApp from './war-app';
+export default function Home() { return <WarApp />; }

@@ -1,0 +1,6 @@
+Projeto 2 — miniaturas 3D originais
+
+As cinco miniaturas e efeitos foram criados por código para este projeto, sem assets externos ou créditos pagos.
+Os direitos dos assets acompanham o projeto do usuário. Não foram extraídos ou copiados dos sites de referência.
+Modelos GLB: eixo Y para cima, frente +Z, paleta vermelha. A fábrica no código suporta vermelho/azul.
+Movimentos articulados são animados no código; os GLBs contêm a pose estática, sem clipes de animação.

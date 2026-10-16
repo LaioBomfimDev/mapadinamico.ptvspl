@@ -1,0 +1,46 @@
+{
+  "name": "Projeto 2 — explosão de miniatura",
+  "origin": "Original procedural drawing for this project; no external image, remote generation or paid credit.",
+  "generator": "scripts/generate-war-sprites.py",
+  "seed": 22013,
+  "atlas": {
+    "file": "explosions.png",
+    "width": 2048,
+    "height": 1024,
+    "columns": 8,
+    "rows": 4,
+    "frames": 32,
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "order": "left to right, top to bottom",
+    "fps": 25,
+    "durationSeconds": 1.28,
+    "transparent": true,
+    "pivot": [
+      0.5,
+      0.85
+    ]
+  },
+  "files": [
+    {
+      "file": "explosions.png",
+      "bytes": 473837,
+      "sha256": "b222d29cd633e36cb6f20c4019e99173d5dfc786cb11aa2bba2a77091068f5cb"
+    },
+    {
+      "file": "explosion-contact-sheet.png",
+      "bytes": 100524,
+      "sha256": "e0b694a86a088815f0e06a2529dbe48fefdded99276b6b5e385eb39c62a5bb60"
+    },
+    {
+      "file": "explosion-preview.gif",
+      "bytes": 236134,
+      "sha256": "0c10bf377459261dd785840852dd820cb639d81f8e525203e6e323d37969d763"
+    },
+    {
+      "file": "explosion-preview.png",
+      "bytes": 17551,
+      "sha256": "1ffeba8367beaa3830fd136a11e1d9f3a24513d3a33e847caa681a427d97df03"
+    }
+  ]
+}

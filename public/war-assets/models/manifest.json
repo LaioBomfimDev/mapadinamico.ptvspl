@@ -1,0 +1,163 @@
+{
+  "name": "Projeto 2 — miniaturas originais",
+  "format": "glTF 2.0 binary",
+  "origin": "Procedural geometry created for this project; no external model, downloaded texture or paid generation.",
+  "source": "lib/war/unit-models.ts",
+  "generator": "scripts/export-war-models.mjs",
+  "unit": "toy-scale",
+  "up": "Y",
+  "front": "+Z",
+  "team": "red",
+  "runtimeTeams": [
+    "red",
+    "blue"
+  ],
+  "notes": "GLBs contain the red palette. Runtime createUnit(kind, team) creates either team. Animation transforms are provided by animateUnit; no baked GLB animation clips.",
+  "models": [
+    {
+      "kind": "infantry",
+      "name": "Infantaria",
+      "description": "Soldado de miniatura, com capacete, mochila e braços articulados.",
+      "file": "infantry.glb",
+      "bytes": 239064,
+      "sha256": "51d47219b4b94e66e09728f16b4e939409078280aff26a3aaa720ae10dc9a5f2",
+      "dimensions": [
+        0.848,
+        1.8768,
+        1.125
+      ],
+      "bounds": {
+        "min": [
+          -0.424,
+          0,
+          -0.335
+        ],
+        "max": [
+          0.424,
+          1.8768,
+          0.79
+        ]
+      },
+      "triangles": 3092,
+      "vertices": 9276,
+      "drawCalls": 25,
+      "preview": "../previews/infantry.svg"
+    },
+    {
+      "kind": "tank",
+      "name": "Tanque",
+      "description": "Blindado de esteiras com torre giratória, escotilha e rodas de apoio.",
+      "file": "tank.glb",
+      "bytes": 229588,
+      "sha256": "b717f4e5af27156a51811fc0dfa34727e75598e42dfadd814a824f8b93d765ef",
+      "dimensions": [
+        1.819,
+        1.9,
+        2.363
+      ],
+      "bounds": {
+        "min": [
+          -0.9095,
+          0,
+          -0.945
+        ],
+        "max": [
+          0.9095,
+          1.9,
+          1.418
+        ]
+      },
+      "triangles": 3056,
+      "vertices": 9168,
+      "drawCalls": 14,
+      "preview": "../previews/tank.svg"
+    },
+    {
+      "kind": "artillery",
+      "name": "Artilharia",
+      "description": "Canhão de campanha com escudo, recuo e estabilizadores.",
+      "file": "artillery.glb",
+      "bytes": 96356,
+      "sha256": "cbc679c87ad818eec7672cfe611d6de309af6bd2a2b2641f58ea610e94cbd6b0",
+      "dimensions": [
+        1.255,
+        1.1454,
+        2.4613
+      ],
+      "bounds": {
+        "min": [
+          -0.6275,
+          0,
+          -1.25
+        ],
+        "max": [
+          0.6275,
+          1.14542,
+          1.2113
+        ]
+      },
+      "triangles": 1228,
+      "vertices": 3684,
+      "drawCalls": 11,
+      "preview": "../previews/artillery.svg"
+    },
+    {
+      "kind": "drone",
+      "name": "Drone",
+      "description": "Quadricóptero com câmera suspensa, quatro hélices e trem de pouso.",
+      "file": "drone.glb",
+      "bytes": 214584,
+      "sha256": "638945e5e5291ff3c6a1fdd1cd9faf4ffcb146b557354ca9afc5d9a4b59ab8db",
+      "dimensions": [
+        1.8849,
+        0.741,
+        1.85
+      ],
+      "bounds": {
+        "min": [
+          -0.94246,
+          0.574,
+          -0.925
+        ],
+        "max": [
+          0.94246,
+          1.315,
+          0.925
+        ]
+      },
+      "triangles": 2824,
+      "vertices": 8472,
+      "drawCalls": 16,
+      "preview": "../previews/drone.svg"
+    },
+    {
+      "kind": "aircraft",
+      "name": "Avião",
+      "description": "Avião de apoio com asas largas, hélice e acabamento de brinquedo.",
+      "file": "aircraft.glb",
+      "bytes": 123708,
+      "sha256": "0091663eb908b00f3c83e678f415e0d4b38793558ca0cb53a52ce7eefc508ce7",
+      "dimensions": [
+        2.0018,
+        0.9702,
+        1.97
+      ],
+      "bounds": {
+        "min": [
+          -1.0009,
+          0.49538,
+          -0.868
+        ],
+        "max": [
+          1.0009,
+          1.46562,
+          1.102
+        ]
+      },
+      "triangles": 1624,
+      "vertices": 4872,
+      "drawCalls": 9,
+      "preview": "../previews/aircraft.svg"
+    }
+  ]
+}

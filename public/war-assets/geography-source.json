@@ -1,0 +1,12 @@
+{
+  "provider": "IBGE",
+  "fetchedAt": "2026-10-16T18:59:32.537Z",
+  "localityUrl": "https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome",
+  "geometryUrl": "https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?intrarregiao=UF&formato=application/vnd.geo%2Bjson&qualidade=minima",
+  "period": "API default; no fixed period requested",
+  "simplification": "minima",
+  "units": 27,
+  "sha256": "90015a27655ee06120df6d97b2f776824ee920e9f90f394dc20486353fa46ed1",
+  "bytes": 97366,
+  "documentation": "https://servicodados.ibge.gov.br/api/docs/malhas?versao=3"
+}
