@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { createUnit, animateUnit, disposeUnit, UNIT_MODELS } from '../lib/war/unit-models.ts';
 import { WarEffects } from '../lib/war/vfx.ts';
+import { faceTeamBadge } from '../lib/war/team-badges.ts';
 
 const asset = name => new URL(`../public/war-assets/${name}`, import.meta.url);
 
@@ -44,6 +45,68 @@ test('red and blue variants share no disposable materials with one another', () 
   assert.equal(events.size, redMaterials.size);
   assert([...events.values()].every(n => n === 1), 'shared materials disposed once');
   disposeUnit(blue);
+});
+
+test('original-piece ranges partition all non-badge vertices without holes or overlap', () => {
+  for (const { kind } of UNIT_MODELS) {
+    const unit = createUnit(kind, 'red');
+    let pieces = 0;
+    unit.traverse(mesh => {
+      if (!mesh.isMesh) return;
+      if (mesh.userData.teamBadge) {
+        assert.equal(mesh.geometry.userData.teamBadge,true);
+        assert.equal(mesh.geometry.userData.pieceRanges,undefined, 'badge excluded from original unit pieces');
+        return;
+      }
+      assert.equal(mesh.geometry.index,null, 'range indices refer to non-indexed vertices');
+      const ranges = mesh.geometry.userData.pieceRanges;
+      assert(Array.isArray(ranges) && ranges.length > 0, `${kind}: preserved primitive ranges`);
+      let start = 0;
+      for (const [index, range] of ranges.entries()) {
+        assert.equal(range.start,start, `${kind}: no overlap/hole`);
+        assert.equal(range.piece,index);
+        assert(Number.isInteger(range.count) && range.count > 0 && range.count % 3 === 0);
+        assert.equal(range.assembly,mesh.parent.name);
+        start += range.count;
+        pieces++;
+      }
+      assert.equal(start,mesh.geometry.getAttribute('position').count, `${kind}: covers every vertex`);
+    });
+    assert(pieces > 10, `${kind}: several original pieces available`);
+    disposeUnit(unit);
+  }
+});
+
+test('team badges are above the unit, use distinct symbols and can be omitted for debris', () => {
+  for (const team of ['red','blue']) {
+    const unit = createUnit('infantry',team), bare = createUnit('infantry',team,{badge:false});
+    const badge = unit.getObjectByName('team-badge');
+    assert(badge?.isGroup && badge.userData.teamBadge === true);
+    assert.equal(badge.userData.team,team);
+    assert.equal(badge.userData.symbol,team === 'red' ? 'gold-star' : 'toy-blaster');
+    const badgeBounds = new THREE.Box3().setFromObject(badge), bareBounds = new THREE.Box3().setFromObject(bare);
+    assert(badgeBounds.min.y > bareBounds.max.y+0.1, 'icon floats clear of head');
+    assert.equal(bare.getObjectByName('team-badge'),undefined);
+    disposeUnit(unit); disposeUnit(bare);
+  }
+});
+
+test('badge faces camera through rotated, uniformly scaled ancestors without rotating the unit', () => {
+  const scene = new THREE.Scene(), parent = new THREE.Group(), unit = createUnit('tank','blue');
+  parent.rotation.set(0.4,1.1,-0.1); parent.scale.setScalar(0.15);
+  unit.rotation.set(0.2,-0.3,0.1); parent.add(unit); scene.add(parent);
+  const camera = new THREE.PerspectiveCamera(40,1,0.1,100);
+  camera.position.set(4,3,8); camera.lookAt(0,1,0); camera.updateMatrixWorld(true);
+  const originalRotation = unit.quaternion.clone();
+  scene.updateMatrixWorld(true);
+  faceTeamBadge(unit,camera);
+  scene.updateMatrixWorld(true);
+  const world = unit.getObjectByName('team-badge').getWorldQuaternion(new THREE.Quaternion());
+  const view = camera.getWorldQuaternion(new THREE.Quaternion());
+  assert(Math.abs(world.dot(view)) > 0.99999, 'billboard orientation follows camera');
+  assert(unit.quaternion.equals(originalRotation), 'only badge is rotated');
+  faceTeamBadge(new THREE.Group(),camera);
+  disposeUnit(unit);
 });
 
 test('exported GLBs have valid chunks, geometry, materials and matching provenance hashes', async () => {

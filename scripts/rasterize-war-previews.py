@@ -39,3 +39,19 @@ for i, source in enumerate(paths):
     with Image.open(source) as im:
         contact.paste(im, (320*i,0))
 contact.save(PREVIEWS / "miniaturas.png", optimize=True)
+contact_blue = Image.new("RGB", (320*5, 338), "#e4eee0")
+for i, kind in enumerate(["infantry", "tank", "artillery", "drone", "aircraft"]):
+    source = PREVIEWS / f"{kind}-blue.png"
+    if source.exists():
+        with Image.open(source) as im:
+            contact_blue.paste(im, (320*i,0))
+contact_blue.save(PREVIEWS / "miniaturas-blue.png", optimize=True)
+
+broken = Image.new("RGB", (320*5, 338*2), "#e4eee0")
+for row, team in enumerate(["red", "blue"]):
+    for i, kind in enumerate(["infantry", "tank", "artillery", "drone", "aircraft"]):
+        source = PREVIEWS / f"{kind}-{team}-broken.png"
+        if source.exists():
+            with Image.open(source) as im:
+                broken.paste(im, (320*i,338*row))
+broken.save(PREVIEWS / "miniaturas-broken.png", optimize=True)

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createTeamBadge } from './team-badges.ts';
 
 export type UnitKind = 'infantry' | 'tank' | 'artillery' | 'drone' | 'aircraft';
 export type Team = 'red' | 'blue';
@@ -80,9 +81,17 @@ class Parts {
 
   finish() {
     for (const [shade, geometries] of this.parts) {
+      let start = 0;
+      const pieceRanges = geometries.map((geometry, index) => {
+        const count = geometry.getAttribute('position').count;
+        const range = { start, count, piece: index, shade, assembly: this.target.name };
+        start += count;
+        return range;
+      });
       const combined = mergeGeometries(geometries, false);
       geometries.forEach(geometry => geometry.dispose());
       if (!combined) throw new Error(`Cannot combine miniature geometry: ${shade}`);
+      combined.userData.pieceRanges = pieceRanges;
       const mesh = new THREE.Mesh(combined, this.materials[shade]);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -264,7 +273,7 @@ function aircraft(root: THREE.Group, materials: Palette) {
 }
 
 /** Original toy-scale meshes. Y up, +Z front, ground vehicles rest at y≈0. */
-export function createUnit(kind: UnitKind, team: Team = 'red'): THREE.Group {
+export function createUnit(kind: UnitKind, team: Team = 'red', options: { badge?: boolean } = {}): THREE.Group {
   const root = new THREE.Group();
   root.name = `${kind}-${team}`;
   root.userData.kind = kind;
@@ -276,6 +285,12 @@ export function createUnit(kind: UnitKind, team: Team = 'red'): THREE.Group {
   const used = new Set<THREE.Material>();
   root.traverse(object => { if (object instanceof THREE.Mesh) used.add(object.material as THREE.Material); });
   for (const material of Object.values(materials)) if (!used.has(material)) material.dispose();
+  if (options.badge !== false) {
+    const top = new THREE.Box3().setFromObject(root).max.y;
+    const badge = createTeamBadge(team);
+    badge.position.set(0, top + 0.51, 0);
+    root.add(badge);
+  }
   return root;
 }
 

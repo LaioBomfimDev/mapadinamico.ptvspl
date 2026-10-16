@@ -1,0 +1,321 @@
+{
+  "name": "Projeto 2 — miniaturas desmontadas",
+  "format": "glTF 2.0 binary",
+  "origin": "Original unit primitive geometry, disassembled by the runtime ToyDebris implementation; no replacement cubes or external model.",
+  "source": [
+    "lib/war/unit-models.ts",
+    "lib/war/destruction.ts"
+  ],
+  "generator": "scripts/export-war-wrecks.mjs",
+  "unit": "toy-scale",
+  "up": "Y",
+  "groundY": 0,
+  "teamBadges": false,
+  "teams": [
+    "red",
+    "blue"
+  ],
+  "notes": "Static settled visual wreckage, preserving original unit vertices/materials. Infantry is fallen; vehicles are separated into their original toy parts. Inventory is not affected.",
+  "models": [
+    {
+      "kind": "infantry",
+      "name": "Infantaria",
+      "team": "red",
+      "file": "infantry-red-broken.glb",
+      "seed": 1337,
+      "pieces": 38,
+      "bytes": 232524,
+      "sha256": "2239efd4ab6b11ef3da5ecaffa0a6f4688aa012a11abf5b4660ebd0d00c9390f",
+      "vertices": 9298,
+      "triangles": 3112,
+      "bounds": {
+        "min": [
+          -0.6,
+          0.002,
+          -1.00266
+        ],
+        "max": [
+          0.6,
+          0.60708,
+          1.17724
+        ]
+      },
+      "dimensions": [
+        1.2,
+        0.6051,
+        2.1799
+      ],
+      "preview": "../previews/infantry-red-broken.png"
+    },
+    {
+      "kind": "infantry",
+      "name": "Infantaria",
+      "team": "blue",
+      "file": "infantry-blue-broken.glb",
+      "seed": 1337,
+      "pieces": 38,
+      "bytes": 232540,
+      "sha256": "7a5b8e82377154b077a6794777018b39d74de2746cf142617eed17f1fc0317e2",
+      "vertices": 9298,
+      "triangles": 3112,
+      "bounds": {
+        "min": [
+          -0.6,
+          0.002,
+          -1.00266
+        ],
+        "max": [
+          0.6,
+          0.60708,
+          1.17724
+        ]
+      },
+      "dimensions": [
+        1.2,
+        0.6051,
+        2.1799
+      ],
+      "preview": "../previews/infantry-blue-broken.png"
+    },
+    {
+      "kind": "tank",
+      "name": "Tanque",
+      "team": "red",
+      "file": "tank-red-broken.glb",
+      "seed": 2334,
+      "pieces": 88,
+      "bytes": 228236,
+      "sha256": "8eacb1e0a5e0b797e6923300e0ecc63260daa5ae246727236616a0d6c44de013",
+      "vertices": 9190,
+      "triangles": 3076,
+      "bounds": {
+        "min": [
+          -1.43923,
+          0.002,
+          -1.31025
+        ],
+        "max": [
+          1.71113,
+          1.82819,
+          1.88985
+        ]
+      },
+      "dimensions": [
+        3.1504,
+        1.8262,
+        3.2001
+      ],
+      "preview": "../previews/tank-red-broken.png"
+    },
+    {
+      "kind": "tank",
+      "name": "Tanque",
+      "team": "blue",
+      "file": "tank-blue-broken.glb",
+      "seed": 2334,
+      "pieces": 88,
+      "bytes": 228252,
+      "sha256": "e706a3f6798fb2004a5164149b3a106ea1d00bf7f41c9961da988ad00057ada2",
+      "vertices": 9190,
+      "triangles": 3076,
+      "bounds": {
+        "min": [
+          -1.43923,
+          0.002,
+          -1.31025
+        ],
+        "max": [
+          1.71113,
+          1.82819,
+          1.88985
+        ]
+      },
+      "dimensions": [
+        3.1504,
+        1.8262,
+        3.2001
+      ],
+      "preview": "../previews/tank-blue-broken.png"
+    },
+    {
+      "kind": "artillery",
+      "name": "Artilharia",
+      "team": "red",
+      "file": "artillery-red-broken.glb",
+      "seed": 3331,
+      "pieces": 24,
+      "bytes": 96608,
+      "sha256": "8d193daebfbf2de3a2739123e42c8991d7f1c7ebdb1aaeb2ed38463fa0b2aa60",
+      "vertices": 3706,
+      "triangles": 1248,
+      "bounds": {
+        "min": [
+          -1.1,
+          0.002,
+          -1.5723
+        ],
+        "max": [
+          1.1,
+          1.0723,
+          1.23874
+        ]
+      },
+      "dimensions": [
+        2.2,
+        1.0703,
+        2.811
+      ],
+      "preview": "../previews/artillery-red-broken.png"
+    },
+    {
+      "kind": "artillery",
+      "name": "Artilharia",
+      "team": "blue",
+      "file": "artillery-blue-broken.glb",
+      "seed": 3331,
+      "pieces": 24,
+      "bytes": 96624,
+      "sha256": "f0166e406124966cd078f5f63310dce5e824467d399231745f3b261daab70a70",
+      "vertices": 3706,
+      "triangles": 1248,
+      "bounds": {
+        "min": [
+          -1.1,
+          0.002,
+          -1.5723
+        ],
+        "max": [
+          1.1,
+          1.0723,
+          1.23874
+        ]
+      },
+      "dimensions": [
+        2.2,
+        1.0703,
+        2.811
+      ],
+      "preview": "../previews/artillery-blue-broken.png"
+    },
+    {
+      "kind": "drone",
+      "name": "Drone",
+      "team": "red",
+      "file": "drone-red-broken.glb",
+      "seed": 4328,
+      "pieces": 36,
+      "bytes": 212376,
+      "sha256": "722c133ddbf067d767a486d59a46f8843a5ff2ad28a8830ae35056af4c2637ab",
+      "vertices": 8494,
+      "triangles": 2844,
+      "bounds": {
+        "min": [
+          -1.1,
+          0.002,
+          -1.26404
+        ],
+        "max": [
+          1.43254,
+          0.6586,
+          1.19179
+        ]
+      },
+      "dimensions": [
+        2.5325,
+        0.6566,
+        2.4558
+      ],
+      "preview": "../previews/drone-red-broken.png"
+    },
+    {
+      "kind": "drone",
+      "name": "Drone",
+      "team": "blue",
+      "file": "drone-blue-broken.glb",
+      "seed": 4328,
+      "pieces": 36,
+      "bytes": 212396,
+      "sha256": "338c9383011ed015134bf0d8e5137b06dfbded6aaa6d78bdcd0d2aa6ae6848cc",
+      "vertices": 8494,
+      "triangles": 2844,
+      "bounds": {
+        "min": [
+          -1.1,
+          0.002,
+          -1.26404
+        ],
+        "max": [
+          1.43254,
+          0.6586,
+          1.19179
+        ]
+      },
+      "dimensions": [
+        2.5325,
+        0.6566,
+        2.4558
+      ],
+      "preview": "../previews/drone-blue-broken.png"
+    },
+    {
+      "kind": "aircraft",
+      "name": "Avião",
+      "team": "red",
+      "file": "aircraft-red-broken.glb",
+      "seed": 5325,
+      "pieces": 22,
+      "bytes": 125164,
+      "sha256": "ac00777d2ddee8ff7539c4fc51dbb5a9178dd8ffed165b8a64d5465261202311",
+      "vertices": 4894,
+      "triangles": 1644,
+      "bounds": {
+        "min": [
+          -1.34851,
+          0.002,
+          -1.13712
+        ],
+        "max": [
+          1.1,
+          0.8572,
+          1.60367
+        ]
+      },
+      "dimensions": [
+        2.4485,
+        0.8552,
+        2.7408
+      ],
+      "preview": "../previews/aircraft-red-broken.png"
+    },
+    {
+      "kind": "aircraft",
+      "name": "Avião",
+      "team": "blue",
+      "file": "aircraft-blue-broken.glb",
+      "seed": 5325,
+      "pieces": 22,
+      "bytes": 125164,
+      "sha256": "e7ed03ca60a4e64a14f10099766495b1f6a0994258ec1588c976d98cd9e73a50",
+      "vertices": 4894,
+      "triangles": 1644,
+      "bounds": {
+        "min": [
+          -1.34851,
+          0.002,
+          -1.13712
+        ],
+        "max": [
+          1.1,
+          0.8572,
+          1.60367
+        ]
+      },
+      "dimensions": [
+        2.4485,
+        0.8552,
+        2.7408
+      ],
+      "preview": "../previews/aircraft-blue-broken.png"
+    }
+  ]
+}

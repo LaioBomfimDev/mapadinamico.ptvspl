@@ -10,6 +10,7 @@ Entrega de 2026-10-16, após o usuário escolher miniaturas e pedir prosseguir c
 - Cinco miniaturas volumétricas próprias: infantaria, tanque, artilharia, drone e avião; versões vermelha e azul, partes animadas, galeria `/arsenal`, GLBs e ZIP.
 - O lote mostra uma miniatura por tipo de equipamento presente. Quantidades reais aparecem no painel e entram integralmente no cálculo de força; a cena não desenha um objeto para cada soldado acumulado.
 - Explosão/fumaça em atlas transparente de 32 quadros, projetado como sprite na cena 3D. Limite de 24 efeitos simultâneos e descarte de texturas.
+- Atualização visual solicitada depois: estrela dourada acima do time vermelho/13, arma de brinquedo acima do azul/22, soldado caído e equipamentos desmontados nas peças originais. Destroços ficam na sessão até reconstruir, começar outra batalha ou recarregar. Galeria permite explodir/reconstruir e baixar dez GLBs quebrados. Detalhes em [DESTRUICAO_MINIATURAS.md](DESTRUICAO_MINIATURAS.md).
 - Simulador de comentário `@perfil BA 13`, com uma base por perfil, deduplicação de identificador, teto diário e compra manual de unidades com pontos.
 - Demonstração com 82 bases fictícias, ou mapa vazio pelo botão **Opções da demonstração**. A base inicial editável é `@voce_demo`, na Bahia.
 - Batalha demonstrativa de sete minutos, com velocidades 1×, 12× (35 s) e 24×, pausa, trajetórias, explosões, perdas visuais, pintura gradual e resultado.

@@ -11,7 +11,8 @@
 - Exibir a disputa ao vivo, colorir o mapa em vermelho/azul conforme os resultados e mostrar vencedores.
 - **Vitória nacional reconfirmada nesta conversa:** vence o time com maior força militar total. A redação importada de outro chat, que dizia maior número de inscritos, foi explicitamente rejeitada ao esclarecer a divergência. Pesos das unidades e desempate ainda estão em aberto.
 - Escolha confirmada: **acumular tropas e territórios entre os dias**. Reinício diário não foi escolhido.
-- **Perdas apenas visuais:** todo o exército acumulado permanece entre os dias. A prévia importada do outro chat faz o equipamento desaparecer e reaparecer; momento de restauração, nomes e efeitos ainda precisam de alinhamento visual. Isso não autoriza apagar inventário ou reiniciar territórios.
+- **Perdas apenas visuais:** todo o exército acumulado permanece entre os dias. Pedido visual mais recente: bonecos caídos e equipamentos desmontados em suas próprias peças, como brinquedos, com destroços e marcas da guerra. No protótipo, ficam na sessão até reconstruir, iniciar outra batalha ou recarregar; esse momento de restauração é escolha de implementação para avaliação. Isso não autoriza apagar inventário ou reiniciar territórios.
+- **Identificação adicional confirmada:** estrela dourada acima das unidades vermelhas/13 e arma de brinquedo acima das azuis/22, além das cores. Implementação e downloads em [DESTRUICAO_MINIATURAS.md](DESTRUICAO_MINIATURAS.md).
 - Escolha confirmada: **cada estado fica com a cor do time que tiver maior força acumulada nele**, mantendo uma única batalha nacional.
 - **Decisão atual, substitui a escolha anterior:** quem já criou uma base participa automaticamente de todas as batalhas seguintes, mesmo sem comentar novamente naquele dia. A inscrição permanece no mapa.
 - Escolha confirmada: **montagem manual do exército, usando pontos do jogo para escolher e comprar armamento**. Evolução automática não foi escolhida.
@@ -31,7 +32,7 @@ As regras foram alinhadas antes do protótipo. O usuário depois autorizou sua i
 | Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |
 | Vencedor nacional | Reconfirmado: maior força militar total em uma única batalha nacional |
 | Continuidade entre dias | Confirmado: tropas e territórios acumulam entre os dias |
-| Remoção e restauração visual | Baixas apenas visuais; inventário preservado. Momento de restauração e tratamento dos nomes pendentes |
+| Remoção e restauração visual | Peças desmontadas e boneco caído; inventário preservado. Protótipo restaura ao reconstruir, iniciar outra batalha ou recarregar; duração entre sessões e nomes pendentes |
 | Cores dos estados | Confirmado: cor do time com maior força acumulada no estado |
 | Participação diária | Confirmado pela alteração mais recente: toda base inscrita participa automaticamente, sem exigir novo comentário |
 | Conversão de pontos | Confirmado: escolha manual de armamento com pontos do jogo |
@@ -46,7 +47,7 @@ O usuário reconfirmou a vitória por força militar total após esclarecer a co
 
 - O vencedor nacional depende da soma da força militar das bases inscritas em cada time. O número de participantes, isoladamente, não decide a vitória. A fórmula e os pesos por equipamento ainda não foram definidos.
 - A cor de um estado depende da comparação das forças dos participantes da batalha ali; com a inscrição permanente, todas as bases existentes entram na comparação mesmo sem comentário novo. Um time pode vencer nacionalmente e ainda ter menos força em alguns estados.
-- Unidades podem desaparecer temporariamente como representação de perdas. A restauração dessa apresentação e o tratamento dos nomes ainda precisam ser discutidos; inventário e força acumulada permanecem preservados.
+- Unidades atingidas viram destroços das mesmas peças, com infantaria caída. No protótipo a reconstrução restaura a apresentação sem alterar inventário ou força; persistência entre sessões e tratamento dos nomes ainda podem ser discutidos.
 - Uma baixa mostrada durante o combate não remove permanentemente o equipamento nem autoriza apagar territórios acumulados.
 - A batalha nacional inclui todos os exércitos inscritos. Deixar de comentar no dia não remove a base, não guarda o exército fora da batalha e não reduz sua força. Novos comentários podem dar pontos dentro do limite diário ainda por definir.
 - A pessoa escolhe o que comprar; catálogo, preços, força por unidade, pontos não gastos, venda/troca e fechamento das compras ainda precisam de regras.

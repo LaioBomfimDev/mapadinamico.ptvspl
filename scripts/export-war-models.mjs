@@ -7,6 +7,7 @@ import { strict as assert } from 'node:assert';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { createUnit, disposeUnit, UNIT_MODELS } from '../lib/war/unit-models.ts';
+import { faceTeamBadge } from '../lib/war/team-badges.ts';
 
 globalThis.FileReader ??= class {
   result = null; onloadend = null; onerror = null;
@@ -25,7 +26,7 @@ const manifest = {
   origin: 'Procedural geometry created for this project; no external model, downloaded texture or paid generation.',
   source: 'lib/war/unit-models.ts', generator: 'scripts/export-war-models.mjs',
   unit: 'toy-scale', up: 'Y', front: '+Z', team: 'red', runtimeTeams: ['red', 'blue'],
-  notes: 'GLBs contain the red palette. Runtime createUnit(kind, team) creates either team. Animation transforms are provided by animateUnit; no baked GLB animation clips.',
+  notes: 'GLBs contain the red palette with gold-star team badge. Runtime createUnit(kind, team) creates red/gold-star or blue/toy-blaster. Animation transforms are provided by animateUnit; no baked GLB animation clips. Runtime geometry preserves original piece ranges for visual breakage.',
   models: [],
 };
 
@@ -52,6 +53,9 @@ for (const info of UNIT_MODELS) {
   await fs.writeFile(path.join(output, filename), binary);
   const svg = renderSvg(root, info.name);
   await fs.writeFile(path.join(previews, `${info.kind}.svg`), svg);
+  const blue = createUnit(info.kind, 'blue');
+  await fs.writeFile(path.join(previews, `${info.kind}-blue.svg`), renderSvg(blue, info.name));
+  disposeUnit(blue);
   files.push({ name: filename, buffer: binary });
   manifest.models.push({ ...info, file: filename, bytes: binary.length, sha256: createHash('sha256').update(binary).digest('hex'),
     dimensions: dimensions.toArray().map(n => +n.toFixed(4)), bounds: { min: bounds.min.toArray().map(n => +n.toFixed(5)), max: bounds.max.toArray().map(n => +n.toFixed(5)) },
@@ -94,8 +98,10 @@ function validateGlb(binary, label) {
 
 /** Orthographic vector preview of the actual meshes; sorted triangles, no browser dependency. */
 function renderSvg(root, name) {
-  const camera = new THREE.OrthographicCamera(-1.6, 1.6, 1.5, -1.5, 0.1, 20);
-  camera.position.set(3.8, 3.0, 4.8); camera.lookAt(0, 0.75, 0); camera.updateMatrixWorld(true);
+  const camera = new THREE.OrthographicCamera(-1.76, 1.76, 1.65, -1.65, 0.1, 20);
+  camera.position.set(3.8, 3.35, 4.8); camera.lookAt(0, 1.15, 0); camera.updateMatrixWorld(true);
+  faceTeamBadge(root, camera);
+  root.updateMatrixWorld(true);
   const light = new THREE.Vector3(-0.5, 1, 0.7).normalize();
   const normal = new THREE.Vector3(), edge = new THREE.Vector3(), polygons = [];
   root.traverse(mesh => {

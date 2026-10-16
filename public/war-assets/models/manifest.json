@@ -12,18 +12,18 @@
     "red",
     "blue"
   ],
-  "notes": "GLBs contain the red palette. Runtime createUnit(kind, team) creates either team. Animation transforms are provided by animateUnit; no baked GLB animation clips.",
+  "notes": "GLBs contain the red palette with gold-star team badge. Runtime createUnit(kind, team) creates red/gold-star or blue/toy-blaster. Animation transforms are provided by animateUnit; no baked GLB animation clips. Runtime geometry preserves original piece ranges for visual breakage.",
   "models": [
     {
       "kind": "infantry",
       "name": "Infantaria",
       "description": "Soldado de miniatura, com capacete, mochila e braços articulados.",
       "file": "infantry.glb",
-      "bytes": 239064,
-      "sha256": "51d47219b4b94e66e09728f16b4e939409078280aff26a3aaa720ae10dc9a5f2",
+      "bytes": 271124,
+      "sha256": "32fa19c49a3817631fa62b4daad19ed14bedfa3adaaa9dad35b7cac2a01dcf7d",
       "dimensions": [
         0.848,
-        1.8768,
+        2.7468,
         1.125
       ],
       "bounds": {
@@ -34,13 +34,13 @@
         ],
         "max": [
           0.424,
-          1.8768,
+          2.7468,
           0.79
         ]
       },
-      "triangles": 3092,
-      "vertices": 9276,
-      "drawCalls": 25,
+      "triangles": 3444,
+      "vertices": 10332,
+      "drawCalls": 29,
       "preview": "../previews/infantry.svg"
     },
     {
@@ -48,11 +48,11 @@
       "name": "Tanque",
       "description": "Blindado de esteiras com torre giratória, escotilha e rodas de apoio.",
       "file": "tank.glb",
-      "bytes": 229588,
-      "sha256": "b717f4e5af27156a51811fc0dfa34727e75598e42dfadd814a824f8b93d765ef",
+      "bytes": 264880,
+      "sha256": "94e0478429832544b96aaf4c856d1eaef4b847bcd6730b233eb16d9b62483ce8",
       "dimensions": [
         1.819,
-        1.9,
+        2.77,
         2.363
       ],
       "bounds": {
@@ -63,13 +63,13 @@
         ],
         "max": [
           0.9095,
-          1.9,
+          2.77,
           1.418
         ]
       },
-      "triangles": 3056,
-      "vertices": 9168,
-      "drawCalls": 14,
+      "triangles": 3408,
+      "vertices": 10224,
+      "drawCalls": 18,
       "preview": "../previews/tank.svg"
     },
     {
@@ -77,11 +77,11 @@
       "name": "Artilharia",
       "description": "Canhão de campanha com escudo, recuo e estabilizadores.",
       "file": "artillery.glb",
-      "bytes": 96356,
-      "sha256": "cbc679c87ad818eec7672cfe611d6de309af6bd2a2b2641f58ea610e94cbd6b0",
+      "bytes": 127112,
+      "sha256": "ac9b2a46a43eb9590fca9a3be104eba9acc037d21166028de0f30bcb8d197184",
       "dimensions": [
         1.255,
-        1.1454,
+        2.0154,
         2.4613
       ],
       "bounds": {
@@ -92,13 +92,13 @@
         ],
         "max": [
           0.6275,
-          1.14542,
+          2.01542,
           1.2113
         ]
       },
-      "triangles": 1228,
-      "vertices": 3684,
-      "drawCalls": 11,
+      "triangles": 1580,
+      "vertices": 4740,
+      "drawCalls": 15,
       "preview": "../previews/artillery.svg"
     },
     {
@@ -106,11 +106,11 @@
       "name": "Drone",
       "description": "Quadricóptero com câmera suspensa, quatro hélices e trem de pouso.",
       "file": "drone.glb",
-      "bytes": 214584,
-      "sha256": "638945e5e5291ff3c6a1fdd1cd9faf4ffcb146b557354ca9afc5d9a4b59ab8db",
+      "bytes": 246432,
+      "sha256": "e82b16285fe0b19049bc9643fb13fadd356f1ea7e6d89cf8e4ab9c07ee29cb6d",
       "dimensions": [
         1.8849,
-        0.741,
+        1.611,
         1.85
       ],
       "bounds": {
@@ -121,13 +121,13 @@
         ],
         "max": [
           0.94246,
-          1.315,
+          2.185,
           0.925
         ]
       },
-      "triangles": 2824,
-      "vertices": 8472,
-      "drawCalls": 16,
+      "triangles": 3176,
+      "vertices": 9528,
+      "drawCalls": 20,
       "preview": "../previews/drone.svg"
     },
     {
@@ -135,11 +135,11 @@
       "name": "Avião",
       "description": "Avião de apoio com asas largas, hélice e acabamento de brinquedo.",
       "file": "aircraft.glb",
-      "bytes": 123708,
-      "sha256": "0091663eb908b00f3c83e678f415e0d4b38793558ca0cb53a52ce7eefc508ce7",
+      "bytes": 154312,
+      "sha256": "f1167a1b0c8cb812b92917e0a3f40d5fef27dc9cec25f718dfe79d4268ecb103",
       "dimensions": [
         2.0018,
-        0.9702,
+        1.8402,
         1.97
       ],
       "bounds": {
@@ -150,13 +150,13 @@
         ],
         "max": [
           1.0009,
-          1.46562,
+          2.33562,
           1.102
         ]
       },
-      "triangles": 1624,
-      "vertices": 4872,
-      "drawCalls": 9,
+      "triangles": 1976,
+      "vertices": 5928,
+      "drawCalls": 13,
       "preview": "../previews/aircraft.svg"
     }
   ]

@@ -32,3 +32,13 @@ Capturas em `outputs/prototipo-miniaturas/` (ignoradas pelo Git): mapa de produ�
 ## Limites
 
 Sem teste humano de balanceamento, carga com milhares de participantes, integração Meta, conta/post Instagram, autorização de perfil real, banco de produção, transmissão sincronizada entre visitantes ou agendamento automático às 22h. Essas etapas continuam separadas da demonstração.
+
+## Atualização — miniaturas desmontáveis e símbolos
+
+2026-10-16, pedido posterior à primeira entrega. Testes executados: `node --test tests/war-game.test.mjs tests/war-assets.test.mjs tests/war-destruction.test.mjs tests/war-wreck-assets.test.mjs` (**27 aprovados**) e `node --test tests/vercel.test.mjs` (**6 aprovados**), total **33 aprovados, zero falhas**. TypeScript `tsc --noEmit` aprovado.
+
+Novas verificações: intervalos originais dos vértices sem lacunas; símbolos acima das unidades, opcionais e voltados para a câmera; conservação de peças, triângulos e cores; infantaria caída; apoio no chão; posições iniciais sob escala/rotação; final determinístico independente do passo de tempo; limites e impactos repetidos; reconstrução sem consumir inventário nem destruir recursos do modelo original. Dez GLBs quebrados, hashes e doze entradas do ZIP conferidos por CRC.
+
+Navegador com WebGL na prévia de desenvolvimento: tanque azul explodido/reconstruído (contador 1 → 0), infantaria vermelha deitada com capacete solto, símbolos de estrela/arma conferidos. Rodada completa em 24× terminou com azul 13.620 contra vermelho 13.605 e **86 destroços**; após fechar o resultado, os destroços permaneceram. **Reconstruir só as miniaturas** zerou-os e preservou as **962 unidades**, 83 bases e placar. Nenhum aviso/erro nos consoles capturados da galeria e do mapa. Detalhes e limites em [DESTRUICAO_MINIATURAS.md](DESTRUICAO_MINIATURAS.md).
+
+Build final `npm run build:vercel` concluída com saída 0 (compilação, TypeScript e dez páginas geradas). Prévia de produção reiniciada em `http://127.0.0.1:5183/`: home, arsenal, ZIP intacto, ZIP quebrado e GLB quebrado retornaram HTTP 200/MIME correto. Infantaria foi explodida na galeria de produção, contador 1 e nenhum aviso/erro de console. Capturas reais em `outputs/desmontagem/infantaria-caida-producao.png` e `mapa-distintivos-producao.png`; viewport restaurado e novas abas finais preservadas. Sem deploy remoto.

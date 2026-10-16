@@ -4,6 +4,8 @@ Registro de 2026-10-16. O usuário pediu alinhar as ideias antes de prosseguir c
 
 **Atualização posterior:** usuário escolheu miniaturas e pediu prosseguir com criação e melhorias. Mapa IBGE, ruas, cinco unidades 3D, sprites de explosão e protótipo local foram implementados. Estado atual em [PROTOTIPO_MINIATURAS.md](PROTOTIPO_MINIATURAS.md); as seções de inspeção abaixo registram a situação anterior à implementação. Números da economia, empates e apresentação das fases continuam experimentais.
 
+**Pedido visual seguinte, implementado:** miniaturas desmontam nas próprias peças, infantaria fica caída, marcas e destroços permanecem na sessão. Estrela dourada acima do vermelho/13 e arma de brinquedo acima do azul/22. Galeria permite explodir/reconstruir. [Comportamento, limites e downloads](DESTRUICAO_MINIATURAS.md). O momento de limpar o campo na sessão é uma escolha do protótipo, não uma decisão adicional do usuário.
+
 ## Confirmado diretamente nesta conversa
 
 - Desenvolvimento ativo apenas do Projeto 2; Projeto 1 preservado como histórico.

@@ -4,10 +4,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createUnit, animateUnit } from '../lib/war/unit-models';
 import { WarEffects } from '../lib/war/vfx';
+import { ToyDebris } from '../lib/war/destruction';
+import { createTeamBadge, faceTeamBadge } from '../lib/war/team-badges';
 import { baseLots, clippedStreet, projectedState, project, stateBounds, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind } from '../lib/war/game';
 
-export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'rotate'; serial: number; baseId?: string; uf?: string };
+export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'rotate' | 'rebuild'; serial: number; baseId?: string; uf?: string };
 type Props = { bases: Base[]; controls: Control; selected?: string; command?: CameraCommand; battle?: Battle | null; elapsed: number; suspended?: boolean; onBase: (id: string) => void; onState: (uf: string) => void };
 const COLORS = { red: '#db655c', blue: '#5d93ca', neutral: '#95b86f' };
 function disposeTree(object: THREE.Object3D) {
@@ -22,7 +24,7 @@ function plaque(text: string, color: string, width: number, paper = false) {
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true })); sprite.scale.set(width, width * 96 / canvas.width, 1); sprite.renderOrder = 8; return sprite;
 }
-type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; draw: () => void; focus: (baseId?: string, uf?: string) => void; reset: () => void };
+type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; debris: ToyDebris; casualties: Set<string>; draw: () => void; focus: (baseId?: string, uf?: string) => void; reset: () => void };
 
 export default function WarWorld(props: Props) {
   const host = useRef<HTMLDivElement>(null), runtime = useRef<Runtime | null>(null), latest = useRef(props), fired = useRef(new Set<number>()), lastBattle = useRef('');
@@ -46,10 +48,10 @@ export default function WarWorld(props: Props) {
         const ocean = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: '#acd9e8', toneMapped: false })); ocean.rotation.x = -Math.PI / 2; ocean.position.y = -.3; scene.add(ocean);
         const grid = new THREE.GridHelper(300, 100, '#d7eef2', '#d7eef2'); grid.position.y = -.27; (grid.material as THREE.Material).transparent = true; (grid.material as THREE.Material).opacity = .28; scene.add(grid);
         const bases = new THREE.Group(), labels = new THREE.Group(); scene.add(bases, labels);
-        const terrain = new Map<string, THREE.MeshStandardMaterial>(), effects = new WarEffects(scene);
+        const terrain = new Map<string, THREE.MeshStandardMaterial>(), effects = new WarEffects(scene), debris = new ToyDebris(scene), casualties = new Set<string>();
         const reset = () => { const z = container.clientWidth < 680 ? -16 : 0; camera.zoom = 1; orbit.target.set(0, 0, z); camera.position.set(0, 78, 47 + z); camera.updateProjectionMatrix(); orbit.update(); };
         const draw = () => { renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); };
-        owned = { scene, renderer, camera, orbit, bases, labels, terrain, effects, positions: new Map(), groups: new Map(), geographies: [], draw, reset, focus: (id, uf) => {
+        owned = { scene, renderer, camera, orbit, bases, labels, terrain, effects, debris, casualties, positions: new Map(), groups: new Map(), geographies: [], draw, reset, focus: (id, uf) => {
           const r = runtime.current; if (!r) return;
           const base = latest.current.bases.find(b => b.id === id), state = r.geographies.find(s => s.uf === (uf || base?.uf));
           let p = id ? r.positions.get(id)?.clone() : undefined;
@@ -87,9 +89,13 @@ export default function WarWorld(props: Props) {
         const up = (event: PointerEvent) => { if (event.button !== 0 || Math.abs(start.x - event.clientX) + Math.abs(start.y - event.clientY) > 6) return; const rect = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera); for (const hit of ray.intersectObject(bases, true)) { let node: THREE.Object3D | null = hit.object; while (node) { if (node.userData.baseId) { latest.current.onBase(node.userData.baseId); return; } node = node.parent; } } for (const hit of ray.intersectObjects(scene.children, true)) if (hit.object.userData.uf) { latest.current.onState(hit.object.userData.uf); return; } };
         renderer.domElement.addEventListener('pointerdown', down); renderer.domElement.addEventListener('pointerup', up); cleanup = () => { renderer.domElement.removeEventListener('pointerdown', down); renderer.domElement.removeEventListener('pointerup', up); };
         let previous = 0; const frustum = new THREE.Frustum(), projection = new THREE.Matrix4(), bounds = new THREE.Sphere();
+        const impacts: { source: string; target: string; at: number; index: number }[] = [];
+        const ensureModels = (group: THREE.Group) => { if (group.userData.models.length) return; (group.userData.kinds as { kind: UnitKind }[]).forEach((unit, index) => { const model = createUnit(unit.kind, group.userData.team); const size = group.userData.size; model.scale.setScalar(size * .22); model.position.set((index === 4 ? 0 : index % 2 ? .24 : -.2) * size, .055, (index === 4 ? 0 : index < 2 ? -.1 : .3) * size); model.rotation.y = -.25; model.userData.visualKey = `${group.userData.baseId}:${unit.kind}`; group.add(model); group.userData.models.push(model); }); };
         const animate = (time: number) => {
           if (cancelled) return; raf = requestAnimationFrame(animate); if (document.hidden || time - previous < 33) return;
           const dt = Math.min((time - previous) / 1000, .1); previous = time; const current = latest.current; if (current.suspended) return; let dirty = orbit.update();
+          const activeBattle = current.battle;
+          if (activeBattle && lastBattle.current !== activeBattle.id) { debris.clear(); casualties.clear(); fired.current.clear(); impacts.length = 0; lastBattle.current = activeBattle.id; dirty = true; }
           camera.updateMatrixWorld(); frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
           const showLabels = camera.zoom < 3.8; if (labels.visible !== showLabels) { labels.visible = showLabels; dirty = true; }
           if (trees.visible !== (camera.zoom < 12)) { trees.visible = camera.zoom < 12; dirty = true; }
@@ -97,29 +103,32 @@ export default function WarWorld(props: Props) {
           for (const [id, group] of owned!.groups) {
             bounds.center.copy(group.position); bounds.radius = group.userData.size * 2; visible(group, frustum.intersectsSphere(bounds)); if (!group.visible) continue;
             const detail = camera.zoom > 2.5 || current.selected === id;
-            if (detail && !group.userData.models.length) { (group.userData.kinds as { kind: UnitKind }[]).forEach((unit, index) => { const model = createUnit(unit.kind, group.userData.team); const size = group.userData.size; model.scale.setScalar(size * .22); model.position.set((index === 4 ? 0 : index % 2 ? .24 : -.2) * size, .055, (index === 4 ? 0 : index < 2 ? -.1 : .3) * size); model.rotation.y = -.25; group.add(model); group.userData.models.push(model); }); dirty = true; }
+            if (detail && !group.userData.models.length) { ensureModels(group); dirty = true; }
             for (const decoration of group.userData.decorations as THREE.Object3D[]) visible(decoration, detail);
-            group.userData.models.forEach((unit: THREE.Group) => { if (!current.battle) unit.userData.casualty = false; visible(unit, detail && !unit.userData.casualty); if (unit.visible) animateUnit(unit, time / 1000, !!current.battle); });
-            visible(group.userData.marker, !detail); visible(group.userData.name, current.selected === id || camera.zoom > 9);
+            group.userData.models.forEach((unit: THREE.Group) => { visible(unit, detail && !casualties.has(unit.userData.visualKey)); if (unit.visible) { animateUnit(unit, time / 1000, !!activeBattle); faceTeamBadge(unit, camera); } });
+            visible(group.userData.marker, !detail); faceTeamBadge(group.userData.marker, camera); visible(group.userData.name, current.selected === id || camera.zoom > 9);
           }
           for (const child of bases.children) if (child.userData.street) visible(child, camera.zoom > 2.5);
-          const activeBattle = current.battle;
           if (activeBattle) {
-            if (lastBattle.current !== activeBattle.id) { fired.current.clear(); lastBattle.current = activeBattle.id; }
-            activeBattle.events.forEach((event, index) => { if (event.at <= current.elapsed && !fired.current.has(index)) { fired.current.add(index); const target = owned!.positions.get(event.target), source = owned!.positions.get(event.source); if (target && source) {
+            activeBattle.events.forEach((event, index) => { if (event.at <= current.elapsed && !fired.current.has(index)) { fired.current.add(index); impacts.push({ source: event.source, target: event.target, at: event.at, index }); } });
+          }
+          for (let budget = 0; budget < 2 && impacts.length; budget++) {
+            const event = impacts.shift()!, target = owned!.positions.get(event.target), source = owned!.positions.get(event.source); if (target && source) {
               effects.spawn(target.clone().add(new THREE.Vector3(0, .4, 0)), Math.max(.5, owned!.groups.get(event.target)?.userData.size || 1));
               const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([source.clone().add(new THREE.Vector3(0, .25, 0)), source.clone().lerp(target, .5).add(new THREE.Vector3(0, 4, 0)), target.clone().add(new THREE.Vector3(0, .2, 0))]), new THREE.LineBasicMaterial({ color: '#ffe5a0', transparent: true, opacity: .8 })); line.userData.ttl = .6; scene.add(line);
-              const group = owned!.groups.get(event.target); if (group && current.elapsed > activeBattle.duration * .2) group.userData.models.forEach((unit: THREE.Group, i: number) => { if ((index + i) % 3 === 0) unit.userData.casualty = true; });
-            } } });
+              const group = owned!.groups.get(event.target);
+              if (group && event.at > 40) { ensureModels(group); const survivors = (group.userData.models as THREE.Group[]).filter(unit => !casualties.has(unit.userData.visualKey)); const victim = survivors[event.index % Math.max(1, survivors.length)]; if (victim && debris.shatter(victim, event.index * 7919 + (activeBattle?.seed ?? 0))) { casualties.add(victim.userData.visualKey); dirty = true; renderer.shadowMap.needsUpdate = true; } }
+            }
           }
           for (const object of [...scene.children]) if (object.userData.ttl !== undefined) { object.userData.ttl -= dt; if (object.userData.ttl <= 0) { scene.remove(object); disposeTree(object); } }
-          const hadEffects = effects.activeCount > 0; effects.update(dt); if (dirty || activeBattle || current.selected || hadEffects) { renderer.render(scene, camera); renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls); }
+          debris.setDetail(camera.zoom > 2.5, frustum); const changedDebris = debris.update(dt);
+          const hadEffects = effects.activeCount > 0; effects.update(dt); if (dirty || activeBattle || current.selected || hadEffects || changedDebris) { renderer.render(scene, camera); renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls); renderer.domElement.dataset.wreckCount = String(debris.count); }
         };
         setReady(true); draw(); raf = requestAnimationFrame(animate);
       } catch (error) { if (!cancelled) setFailure(error instanceof Error ? error.message : 'Falha ao iniciar o 3D.'); }
     };
     void boot();
-    return () => { cancelled = true; abort.abort(); cancelAnimationFrame(raf); observer?.disconnect(); cleanup(); if (owned) { owned.effects.dispose(); owned.orbit.dispose(); disposeTree(owned.scene); owned.renderer.dispose(); owned.renderer.domElement.remove(); } runtime.current = null; };
+    return () => { cancelled = true; abort.abort(); cancelAnimationFrame(raf); observer?.disconnect(); cleanup(); if (owned) { owned.debris.dispose(); owned.effects.dispose(); owned.orbit.dispose(); disposeTree(owned.scene); owned.renderer.dispose(); owned.renderer.domElement.remove(); } runtime.current = null; };
   }, []);
   useEffect(() => {
     const r = runtime.current; if (!r || !ready) return;
@@ -135,7 +144,7 @@ export default function WarWorld(props: Props) {
         const fence = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size / 2, .07, -size / 2), new THREE.Vector3(size / 2, .07, -size / 2), new THREE.Vector3(size / 2, .07, size / 2), new THREE.Vector3(-size / 2, .07, size / 2)]), new THREE.LineBasicMaterial({ color: base.team === 'red' ? '#b35049' : '#3d72a5' })); group.add(fence);
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(size * .012, size * .012, size * .65, 6), new THREE.MeshStandardMaterial({ color: '#e8e6d6' })); pole.position.set(-size * .38, size * .34, -size * .34); group.add(pole);
         const flag = new THREE.Mesh(new THREE.BoxGeometry(size * .28, size * .18, size * .015), new THREE.MeshStandardMaterial({ color: base.team === 'red' ? '#e65c50' : '#4389cc', roughness: 1 })); flag.position.set(-size * .25, size * .56, -size * .34); group.add(flag); group.userData.decorations = [ground, fence, pole, flag];
-        const marker = new THREE.Mesh(new THREE.SphereGeometry(Math.max(.25, size * .18), 10, 8), new THREE.MeshBasicMaterial({ color: base.team === 'red' ? '#e05d50' : '#377bc5' })); marker.position.y = Math.max(.3, size * .8); group.add(marker); group.userData.marker = marker;
+        const marker = createTeamBadge(base.team); marker.scale.setScalar(1.8); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
         const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.35, .08), true); name.position.set(0, size * .22, size * .88); name.visible = false; group.add(name); group.userData.name = name;
         r.bases.add(group); r.groups.set(base.id, group);
       });
@@ -144,6 +153,6 @@ export default function WarWorld(props: Props) {
     r.draw();
   }, [props.bases, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; for (const [uf, material] of r.terrain) material.color.set(COLORS[props.controls[uf] || 'neutral']); r.draw(); }, [props.controls, ready]);
-  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); } r.draw(); }, [props.command, ready]);
+  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); } r.draw(); }, [props.command, ready]);
   return <div ref={host} className="war-world">{!ready && !failure && <div className="war-loading"><span className="loader" /><strong>Preparando o campo…</strong><small>27 territórios. Um Brasil em miniatura.</small></div>}{failure && <div className="war-loading"><strong>O cenário 3D não abriu</strong><p>{failure}</p><p>Confira se o navegador tem WebGL 2 ativado.</p></div>}</div>;
 }

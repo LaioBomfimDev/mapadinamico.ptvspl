@@ -1,0 +1,6 @@
+Projeto 2 — destroços das miniaturas originais
+
+Dez modelos glTF 2.0 binários: cinco tipos, duas equipes.
+Derivados das mesmas primitivas dos modelos originais, pela implementação ToyDebris do projeto.
+Nenhum distintivo de equipe compõe os destroços. Inventário e pontuação não são alterados.
+Arte por código, sem modelos/texturas de terceiros ou créditos pagos. Direitos acompanham o projeto do usuário.
