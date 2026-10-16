@@ -26,7 +26,7 @@ As regras foram alinhadas antes do protótipo. O usuário depois autorizou sua i
 
 | Tema | Estado |
 | --- | --- |
-| Separação dos projetos | Concluída: Projeto 1 preservado; Projeto 2 usa repositório independente `LaioBomfimDev/teste3d` |
+| Separação dos projetos | Concluída: Projeto 1 preservado; Projeto 2 usa repositório independente `LaioBomfimDev/mapadinamico.ptvspl` |
 | Etapa atual | Protótipo web e planta 3D disponíveis; Vercel preparada para importar o repositório. Campanha pública e serviços compartilhados continuam pendentes |
 | Horário e duração | Direção do usuário: diariamente às 22h de Brasília; 5–10 minutos |
 | Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |

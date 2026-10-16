@@ -4,7 +4,7 @@ O repositório contém um app Next.js na raiz. A configuração em `vercel.json`
 
 ## Importar o repositório
 
-Na Vercel, crie um projeto e importe `LaioBomfimDev/teste3d` com estas opções:
+Na Vercel, crie um projeto e importe `LaioBomfimDev/mapadinamico.ptvspl` com estas opções:
 
 | Opção | Valor |
 | --- | --- |
