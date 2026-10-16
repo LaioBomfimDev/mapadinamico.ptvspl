@@ -10,7 +10,7 @@ export function processEngagement(game: GameState, event: EngagementEvent) {
   if (!event.verified) throw Error('Ação aguardando confirmação. Abrir ou copiar um link não comprova participação.');
   if (game.receipts.includes(receipt)) return { game, awarded: false, reason: 'Evento já recebido.' };
   if (game.receipts.length >= 5000) throw Error('Limite de eventos desta demonstração atingido.');
-  if (actor === target) throw Error('Marcar ou apoiar o próprio perfil não dá pontos.');
+  if (event.kind !== 'story' && actor === target) throw Error('Marcar ou apoiar o próprio perfil não dá pontos.');
   const owner = game.bases.find(b => b.username === (event.kind === 'support' ? target : actor));
   if (!owner) throw Error('O perfil que recebe os pontos precisa ter uma base.');
   const day = dayInBrazil(event.at), entries = ledgerOf(owner).entries;
@@ -19,7 +19,7 @@ export function processEngagement(game: GameState, event: EngagementEvent) {
   const capped = entries.filter(e => e.kind === event.kind && dayInBrazil(Date.parse(e.at)) === day).length >= limit;
   const duplicate = entries.some(e => e.key === key);
   const points = event.kind === 'mention' ? SOCIAL_RULES.mention : event.kind === 'support' ? SOCIAL_RULES.support : SOCIAL_RULES.story;
-  const credited = capped || duplicate ? owner : awardPoints(owner, { key, kind: event.kind as PointKind, points, at: new Date(event.at).toISOString(), post: event.post, subject: event.kind === 'support' ? actor : target || undefined });
+  const credited = capped || duplicate ? owner : awardPoints(owner, { key, kind: event.kind as PointKind, points, at: new Date(event.at).toISOString(), post: event.post, subject: event.kind === 'support' ? actor : event.kind === 'mention' ? target : undefined });
   return { game: { ...game, receipts: [...game.receipts, receipt], bases: game.bases.map(b => b.id === owner.id ? credited : b) }, awarded: credited !== owner, reason: duplicate ? 'Esta ação já pontuou.' : capped ? 'Limite diário desta ação atingido.' : `+${points} pontos para @${owner.username}.` };
 }
 export const ARMY_TIERS = [{ name: 'Acampamento', force: 0 }, { name: 'Destacamento', force: 100 }, { name: 'Pelotão', force: 250 }, { name: 'Companhia', force: 500 }, { name: 'Batalhão', force: 1000 }, { name: 'Divisão', force: 2500 }] as const;
