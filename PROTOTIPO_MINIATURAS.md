@@ -5,8 +5,8 @@ Entrega de 2026-10-16, após o usuário escolher miniaturas e pedir prosseguir c
 ## O que funciona localmente
 
 - Home própria de guerra, com mapa 3D em tela cheia e 27 UFs obtidas das APIs oficiais do IBGE. Geografia armazenada em aproximadamente 97 KB, com fonte, data de consulta e hash.
-- **Bahia detalhada com os 417 municípios do IBGE**, cada um com nome, código oficial e limite geográfico. Ao selecionar BA, as divisas municipais aparecem; os nomes entram conforme o zoom e se distribuem em pontos internos dos respectivos territórios. Rótulos próximos se alternam para evitar sobreposição, então aproxime e arraste o mapa para percorrer todos. Malha intermediária armazenada localmente (~800 KB); não é carregada de um serviço externo durante o jogo.
-- Busca de perfis/estados, seleção de base, zoom, pan, rotação, tela cheia e interface adaptada a telas estreitas.
+- **Bahia detalhada com os 417 municípios do IBGE**, cada um com nome, código oficial e limite geográfico. Ao selecionar BA, as divisas municipais aparecem; os nomes entram conforme o zoom e se distribuem em pontos internos. Rótulos próximos se alternam para evitar sobreposição. Para localizar qualquer município pelo nome, use a busca: o mapa foca seu ponto interno e mantém o rótulo escolhido visível. Malha intermediária armazenada localmente (~800 KB); não é carregada de um serviço externo durante o jogo.
+- Busca de perfis, estados e municípios da Bahia, seleção de base, zoom, pan, rotação, tela cheia e interface adaptada a telas estreitas.
 - Bases em quadras com ruas horizontais/verticais estilizadas, recortadas nos polígonos estaduais, incluindo o Distrito Federal. Ruas não vêm do IBGE e não representam vias reais. Os nomes municipais da Bahia se ancoram dentro dos respectivos polígonos do IBGE; isso identifica a área do município, não a coordenada do centro urbano/sede.
 - Cinco miniaturas volumétricas próprias: infantaria, tanque, artilharia, drone e avião; versões vermelha e azul, partes animadas, galeria `/arsenal`, GLBs e ZIP.
 - O lote mostra uma miniatura por tipo de equipamento presente. Quantidades reais aparecem no painel e entram integralmente no cálculo de força; a cena não desenha um objeto para cada soldado acumulado.
@@ -38,7 +38,7 @@ npm run build:vercel
 npm run start:vercel -- --hostname 127.0.0.1 --port 5183
 ```
 
-Na home, explore a base inicial, abra o arsenal e compre uma unidade. **Criar base** abre o simulador de comentário. **Simular batalha** reproduz a rodada. Em telas estreitas, criação também está disponível em **Como funciona**; o botão de opções permite iniciar com mapa vazio ou restaurar a demonstração.
+Na home, explore a base inicial, abra o arsenal e compre uma unidade. Digite, por exemplo, **Catu** na busca para centralizar o município baiano; clicar em BA mostra limites e nomes municipais à medida que aproxima. **Criar base** abre o simulador de comentário. **Simular batalha** reproduz a rodada. Em telas estreitas, criação também está disponível em **Como funciona**; o botão de opções permite iniciar com mapa vazio ou restaurar a demonstração.
 
 ## Limites reais antes de uma campanha pública
 

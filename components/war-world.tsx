@@ -10,9 +10,9 @@ import { createBaseCamp, CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp
 import { baseLots, clippedStreet, projectedState, project, stateBounds, type Point, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind } from '../lib/war/game';
 
-export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'rotate' | 'rebuild'; serial: number; baseId?: string; uf?: string };
+export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'focus-city' | 'rotate' | 'rebuild'; serial: number; baseId?: string; uf?: string; cityId?: string };
 type MunicipalityGeometry = { id: string; name: string; polygons: Point[][][]; label: Point; labelSize: number };
-type Props = { bases: Base[]; controls: Control; selected?: string; selectedUF?: string; command?: CameraCommand; battle?: Battle | null; elapsed: number; suspended?: boolean; onBase: (id: string) => void; onState: (uf: string) => void };
+type Props = { bases: Base[]; controls: Control; selected?: string; selectedUF?: string; selectedMunicipality?: string; command?: CameraCommand; battle?: Battle | null; elapsed: number; suspended?: boolean; onBase: (id: string) => void; onState: (uf: string) => void };
 const COLORS = { red: '#db655c', blue: '#5d93ca', neutral: '#95b86f' };
 function disposeTree(object: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
@@ -26,7 +26,7 @@ function plaque(text: string, color: string, width: number, paper = false) {
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true })); sprite.scale.set(width, width * 96 / canvas.width, 1); sprite.renderOrder = 8; return sprite;
 }
-type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; municipalityBorders: THREE.Group; municipalityLabels: THREE.Group; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; debris: ToyDebris; casualties: Set<string>; draw: () => void; focus: (baseId?: string, uf?: string) => void; reset: () => void };
+type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; municipalityBorders: THREE.Group; municipalityLabels: THREE.Group; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; debris: ToyDebris; casualties: Set<string>; draw: () => void; focus: (baseId?: string, uf?: string, cityId?: string) => void; reset: () => void };
 
 export default function WarWorld(props: Props) {
   const host = useRef<HTMLDivElement>(null), runtime = useRef<Runtime | null>(null), latest = useRef(props), fired = useRef(new Set<number>()), lastBattle = useRef('');
@@ -54,12 +54,14 @@ export default function WarWorld(props: Props) {
         const terrain = new Map<string, THREE.MeshStandardMaterial>(), effects = new WarEffects(scene), debris = new ToyDebris(scene), casualties = new Set<string>();
         const reset = () => { const z = container.clientWidth < 680 ? -16 : 0; camera.zoom = 1; orbit.target.set(0, 0, z); camera.position.set(0, 78, 47 + z); camera.updateProjectionMatrix(); orbit.update(); };
         const draw = () => { renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); };
-        owned = { scene, renderer, camera, orbit, bases, labels, municipalityBorders, municipalityLabels, terrain, effects, debris, casualties, positions: new Map(), groups: new Map(), geographies: [], draw, reset, focus: (id, uf) => {
+        owned = { scene, renderer, camera, orbit, bases, labels, municipalityBorders, municipalityLabels, terrain, effects, debris, casualties, positions: new Map(), groups: new Map(), geographies: [], draw, reset, focus: (id, uf, cityId) => {
           const r = runtime.current; if (!r) return;
           const base = latest.current.bases.find(b => b.id === id), state = r.geographies.find(s => s.uf === (uf || base?.uf));
-          let p = id ? r.positions.get(id)?.clone() : undefined;
+          const cityLabel = cityId ? r.municipalityLabels.children.find(label => label.userData.cityId === cityId) as THREE.Sprite | undefined : undefined;
+          let p = cityLabel?.position.clone() ?? (id ? r.positions.get(id)?.clone() : undefined);
+          if (cityLabel) camera.zoom = Math.min(42, Math.max(12, 22 / Math.max(cityLabel.scale.x, .5)));
           if (!p && state) { const b = stateBounds(state); p = new THREE.Vector3((b.minX + b.maxX) / 2, .7, (b.minZ + b.maxZ) / 2); camera.zoom = Math.min(24, 35 / Math.max(b.maxX - b.minX, b.maxZ - b.minZ)); }
-          else if (p) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 22 / size); }
+          else if (p && !cityLabel) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 22 / size); }
           if (!p) return;
           if (id && container.clientWidth < 680) p.z += 44 / camera.zoom;
           else if (id) p.x -= (camera.right - camera.left) / camera.zoom * Math.min(.25, 220 / container.clientWidth);
@@ -92,7 +94,7 @@ export default function WarWorld(props: Props) {
             const points = ring.map(([lng, lat]) => { const [x, z] = project(lng, lat); return new THREE.Vector3(x, .666, z); });
             municipalityBorders.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: '#71835a', transparent: true, opacity: .78 })));
           }
-          const [x, z] = project(city.label[0], city.label[1]), text = plaque(city.name, '#334b43', city.labelSize);
+          const [x, z] = project(city.label[0], city.label[1]), labelWidth = Math.max(.5, city.labelSize, Math.min(2.4, city.name.length * .12)), text = plaque(city.name, '#334b43', labelWidth, true);
           text.position.set(x, .84, z); text.userData.cityId = city.id; text.userData.cityName = city.name; municipalityLabels.add(text);
         }
         // One instanced vegetation draw call, seeded and kept away from the coast.
@@ -116,15 +118,16 @@ export default function WarWorld(props: Props) {
           const showLabels = camera.zoom < 3.8; if (labels.visible !== showLabels) { labels.visible = showLabels; dirty = true; }
           const showMunicipalities = current.selectedUF === 'BA';
           visible(municipalityBorders, showMunicipalities && camera.zoom > 1.4);
-          visible(municipalityLabels, showMunicipalities && camera.zoom >= 4.5);
+          visible(municipalityLabels, showMunicipalities && camera.zoom >= 3.2);
           if (municipalityLabels.visible) {
             const rect = renderer.domElement.getBoundingClientRect(), occupied: { x: number; y: number; w: number; h: number }[] = [];
-            for (const label of municipalityLabels.children as THREE.Sprite[]) {
+            const orderedLabels = [...municipalityLabels.children as THREE.Sprite[]].sort((a, b) => Number(b.userData.cityId === current.selectedMunicipality) - Number(a.userData.cityId === current.selectedMunicipality));
+            for (const label of orderedLabels) {
               const point = label.position.clone().project(camera), x = (point.x + 1) * rect.width / 2, y = (1 - point.y) * rect.height / 2;
               const w = label.scale.x * camera.zoom * rect.width / (camera.right - camera.left), h = label.scale.y * camera.zoom * rect.height / (camera.top - camera.bottom);
               const inView = point.z >= -1 && point.z <= 1 && x + w / 2 > 0 && x - w / 2 < rect.width && y + h / 2 > 0 && y - h / 2 < rect.height;
               const overlaps = occupied.some(box => Math.abs(box.x - x) < (box.w + w) * .54 && Math.abs(box.y - y) < (box.h + h) * .6);
-              const show = inView && !overlaps;
+              const show = inView && (label.userData.cityId === current.selectedMunicipality || !overlaps);
               if (label.visible !== show) { label.visible = show; dirty = true; }
               if (show) occupied.push({ x, y, w, h });
             }
@@ -180,6 +183,6 @@ export default function WarWorld(props: Props) {
     r.draw();
   }, [props.bases, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; for (const [uf, material] of r.terrain) material.color.set(COLORS[props.controls[uf] || 'neutral']); r.draw(); }, [props.controls, ready]);
-  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); } r.draw(); }, [props.command, ready]);
+  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); } else if (command.action === 'focus-city') r.focus(undefined, command.uf, command.cityId); else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); } r.draw(); }, [props.command, ready]);
   return <div ref={host} className="war-world">{!ready && !failure && <div className="war-loading"><span className="loader" /><strong>Preparando o campo…</strong><small>27 territórios. Um Brasil em miniatura.</small></div>}{failure && <div className="war-loading"><strong>O cenário 3D não abriu</strong><p>{failure}</p><p>Confira se o navegador tem WebGL 2 ativado.</p></div>}</div>;
 }

@@ -1,5 +1,6 @@
 export type Point = [number, number];
 export type StateGeometry = { id: string; uf: string; name: string; polygons: Point[][][] };
+export type MunicipalityIndexItem = { id: string; name: string; label: Point; labelSize: number };
 export const project = (lng: number, lat: number): Point => [(lng + 54) * 1.5, -(lat + 14) * 1.5];
 export function inRing(point: Point, ring: Point[]) {
   let inside = false;
