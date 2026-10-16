@@ -13,8 +13,10 @@
 - Escolha confirmada: **acumular tropas e territórios entre os dias**. Reinício diário não foi escolhido.
 - Escolha confirmada: **as perdas são apenas visuais; todo o exército acumulado permanece** para os próximos dias.
 - Escolha confirmada: **cada estado fica com a cor do time que tiver maior força acumulada nele**, mantendo uma única batalha nacional.
-- Escolha confirmada: **só participa quem comentar naquele dia; o exército continua guardado nos outros dias**.
+- **Decisão atual, substitui a escolha anterior:** quem já criou uma base participa automaticamente de todas as batalhas seguintes, mesmo sem comentar novamente naquele dia. A inscrição permanece no mapa.
 - Escolha confirmada: **montagem manual do exército, usando pontos do jogo para escolher e comprar armamento**. Evolução automática não foi escolhida.
+- Escolha confirmada: **vários comentários válidos geram pontos, com limite diário por perfil**. Valor por comentário e teto numérico ainda não foram escolhidos.
+- O usuário escolheu inicialmente pintar os estados pela força dos participantes da batalha daquele dia, excluindo inativos. Com a alteração posterior, **todas as bases inscritas participam**, inclusive sem novo comentário, e suas forças entram nessa comparação. Não existe mais exigência de ativação diária por comentário.
 
 Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. O usuário confirmou a ordem de trabalho: **separar os projetos e definir as regras primeiro**. O protótipo visual fica para uma etapa posterior.
 
@@ -30,22 +32,22 @@ Esses pontos descrevem a ideia solicitada, não funcionalidades já implementada
 | Continuidade entre dias | Confirmado: tropas e territórios acumulam entre os dias |
 | Perdas de combate | Confirmado: baixas apenas visuais; nenhuma unidade acumulada é removida |
 | Cores dos estados | Confirmado: cor do time com maior força acumulada no estado |
-| Participação diária | Confirmado: comentário no dia ativa a participação; sem comentário o exército fica guardado |
+| Participação diária | Confirmado pela alteração mais recente: toda base inscrita participa automaticamente, sem exigir novo comentário |
 | Conversão de pontos | Confirmado: escolha manual de armamento com pontos do jogo |
-| Pontos por comentário | Aguardando escolha: só o primeiro comentário válido do dia ou vários com limite diário |
-| Bases inativas e território | Aguardando escolha: todas as forças acumuladas contam para a cor ou somente as que participarem da batalha do dia |
+| Pontos por comentário | Confirmado: vários comentários válidos, com limite diário por perfil; números pendentes |
+| Bases sem comentário novo e território | Participam da batalha pela inscrição permanente e suas forças contam para o estado |
 | Pontos convertidos em unidades | Intenção confirmada; valores, fontes e limites ainda por definir |
 | Empates e troca de time | Ainda por definir |
 
-O usuário respondeu às perguntas sobre vencedor, continuidade, perdas, cores dos estados, participação diária e montagem manual. Foram enviadas as perguntas seguintes sobre pontos por comentário e forças inativas no território; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, valores de pontos e unidades. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
+O usuário respondeu às perguntas sobre pontos por comentário e forças no território, e depois alterou explicitamente a participação: bases existentes batalham automaticamente, sem comentário diário obrigatório. A instrução mais recente prevalece. Continuam pendentes os valores de pontos/unidades, o limite numérico, a inscrição por autor e o fechamento da rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
 
 ### Consequências das escolhas confirmadas
 
 - O vencedor nacional depende da soma da força dos dois times no Brasil inteiro, não da quantidade de estados controlados.
-- A cor de um estado depende da comparação das forças acumuladas ali; um time pode vencer nacionalmente e ainda ter menos força em alguns estados.
+- A cor de um estado depende da comparação das forças dos participantes da batalha ali; com a inscrição permanente, todas as bases existentes entram na comparação mesmo sem comentário novo. Um time pode vencer nacionalmente e ainda ter menos força em alguns estados.
 - Explosões e destruição da animação não reduzem o inventário ou o poder acumulado dos participantes.
 - Uma base não deve ser eliminada ou ter seu exército zerado por perder uma batalha.
-- Na batalha nacional só entram os exércitos dos participantes ativados por comentário no dia; os demais continuam guardados.
+- A batalha nacional inclui todos os exércitos inscritos. Deixar de comentar no dia não remove a base, não guarda o exército fora da batalha e não reduz sua força. Novos comentários podem dar pontos dentro do limite diário ainda por definir.
 - A pessoa escolhe o que comprar; catálogo, preços, força por unidade, pontos não gastos, venda/troca e fechamento das compras ainda precisam de regras.
 - A montagem manual exigirá definir um acesso pessoal à base. Buscar um @ no mapa não pode dar a qualquer visitante o poder de gastar os pontos daquele perfil. O mecanismo de autenticação ainda não foi escolhido ou implementado.
 - Ainda é necessário decidir o fechamento dos dados às 22h, o momento de atualizar as cores e o tratamento de empates nacional/estadual.
@@ -64,8 +66,7 @@ O usuário respondeu às perguntas sobre vencedor, continuidade, perdas, cores d
 ## Decisões em aberto
 
 - Como calcular a força militar total de unidades diferentes e resolver empates?
-- Como comentários geram pontos e quais os limites por pessoa/dia?
-- Bases inativas no dia continuam influenciando a cor do estado?
+- Quantos pontos cada comentário válido dá e qual o teto diário por perfil?
 - Qual o catálogo inicial, preços, força por unidade e tratamento dos pontos não gastos?
 - Como o dono acessa sua base e autoriza compras sem permitir edição por outro visitante?
 - Quando atualizar a cor dos estados e como resolver um empate local?
