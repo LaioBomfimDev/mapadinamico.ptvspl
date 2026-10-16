@@ -9,6 +9,8 @@
 - Realizar batalha diária às 22h, horário de Brasília (`America/Sao_Paulo`), com duração de 5 a 10 minutos.
 - Exibir a disputa ao vivo, colorir o mapa em vermelho/azul conforme os resultados e mostrar vencedores.
 - A intenção inicial do usuário é que mais tropas levem à vitória.
+- Escolha confirmada: **uma batalha nacional; vence o time com maior força militar total**.
+- Escolha confirmada: **acumular tropas e territórios entre os dias**. Reinício diário não foi escolhido.
 
 Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. O usuário confirmou a ordem de trabalho: **separar os projetos e definir as regras primeiro**. O protótipo visual fica para uma etapa posterior.
 
@@ -20,29 +22,31 @@ Esses pontos descrevem a ideia solicitada, não funcionalidades já implementada
 | Etapa atual | Confirmada: definição das regras antes do protótipo visual |
 | Horário e duração | Direção do usuário: diariamente às 22h de Brasília; 5–10 minutos |
 | Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |
-| Vencedor nacional | Aguardando escolha: mais estados conquistados ou maior força nacional total |
-| Continuidade entre dias | Aguardando escolha: reiniciar tropas/territórios, manter só territórios ou acumular ambos |
+| Vencedor nacional | Confirmado: maior força militar total em uma única batalha nacional |
+| Continuidade entre dias | Confirmado: tropas e territórios acumulam entre os dias |
+| Perdas de combate | Aguardando escolha: unidades destruídas são perdidas ou baixas apenas visuais |
+| Cores dos estados | Aguardando escolha: controle por força acumulada local ou conquista gradual pelo vencedor nacional |
 | Pontos convertidos em unidades | Intenção confirmada; valores, fontes e limites ainda por definir |
 | Empates e troca de time | Ainda por definir |
 
-Foram enviadas duas perguntas sobre vencedor nacional e continuidade entre dias. Nenhuma opção foi adotada automaticamente. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
+O usuário respondeu às perguntas sobre vencedor e continuidade. Foram enviadas as perguntas seguintes sobre perdas e cores dos estados; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
 
 ## Propostas do assistente — ainda não aprovadas
 
 1. Apresentar 13/22 como times escolhidos voluntariamente **nesta partida**, sem inferir ou afirmar voto/filiação política real de uma pessoa a partir do perfil.
-2. Usar as 27 unidades da federação como frentes. Cada estado teria bases vermelhas e azuis; o vencedor da frente pinta o estado e contribui para o resultado nacional. A interface deve mostrar contagens absolutas de participantes, além da cor.
+2. **Formato de batalhas estaduais descartado pela escolha posterior:** a disputa será nacional. Os estados continuam como referência visual para bases e territórios; a regra de cores ainda precisa de decisão.
 3. Começar com três unidades fáceis de distinguir: infantaria, artilharia e apoio aéreo. Drones seriam uma evolução posterior, depois de validar a leitura da batalha.
 4. Preferir uma sequência de 7 minutos de combate e até 1 minuto de resultado, dentro do máximo solicitado. Tempos por fase e empate ainda precisam de decisão.
-5. Mais tropas dariam vantagem; composição, posições e tipos de unidade também poderiam alterar o resultado. Isso é uma alternativa à vitória garantida por quantidade, não uma regra aprovada.
+5. **Não aprovada como alteração do vencedor:** composição, posições e tipos de unidade poderiam influenciar o combate. A decisão atual mantém a vitória do time com maior força militar total; pesos das unidades e empates ainda serão definidos.
 6. Fechar um retrato das forças antes das 22h. O servidor produziria o combate com uma semente registrada; o navegador reproduziria os eventos, permitindo que todos acompanhassem o mesmo resultado e que atrasados retomassem a transmissão.
 7. Contar participantes pelo identificador estável do Instagram, deduplicar comentários e definir limites de ganho antes de liberar a pontuação. Comentários repetidos não devem criar exércitos novos.
-8. Iniciar com temporada/rodadas reiniciáveis para evitar que uma vantagem acumulada torne todas as próximas batalhas previsíveis. Recompensas permanentes poderiam ser cosméticas.
+8. **Reinício diário descartado pela escolha posterior:** tropas e territórios acumulam. Temporadas, recuperação do lado derrotado e eventuais reinícios futuros ainda não foram escolhidos.
 
 ## Decisões em aberto
 
-- Disputa nacional única, uma batalha por estado, ou confrontos entre bases individuais?
-- Confirmar vitória estritamente por quantidade ou adotar composição/posicionamento?
-- O exército reinicia diariamente? Tropas derrotadas são perdidas? Territórios persistem?
+- Como calcular a força militar total de unidades diferentes e resolver empates?
+- Tropas destruídas são perdidas de verdade ou as baixas são apenas visuais?
+- Como o resultado nacional altera o controle de cada estado e os territórios acumulados?
 - Como cada ação dá tropas, qual limite por pessoa/dia e como tratar bots/contas duplicadas?
 - Como equilibrar tamanhos de time, resolver empates e permitir trocar de time?
 - O ponto da base representa apenas o estado ou também uma cidade opcional? O novo formato não fornece cidade; não reutilizar automaticamente o parser de municípios.
@@ -60,4 +64,4 @@ Foram enviadas duas perguntas sobre vencedor nacional e continuidade entre dias.
 
 ## Primeira entrega sugerida
 
-Um protótipo local, com dados fictícios e botão de iniciar uma batalha curta, mostrando duas bases em um estado e o resultado. Isso permitiria avaliar arte, ritmo e regras antes de conectar comentários reais ou agendar partidas. É uma proposta de próximo passo.
+Depois de fechar as regras, um protótipo local com dados fictícios e botão de iniciar uma batalha curta, mostrando dois times no mapa do Brasil e o resultado nacional. Isso permitiria avaliar arte, ritmo e regras antes de conectar comentários reais ou agendar partidas. É uma proposta de próximo passo; a etapa atual permanece definição.
