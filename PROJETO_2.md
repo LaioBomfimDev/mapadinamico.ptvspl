@@ -13,6 +13,8 @@
 - Escolha confirmada: **acumular tropas e territórios entre os dias**. Reinício diário não foi escolhido.
 - Escolha confirmada: **as perdas são apenas visuais; todo o exército acumulado permanece** para os próximos dias.
 - Escolha confirmada: **cada estado fica com a cor do time que tiver maior força acumulada nele**, mantendo uma única batalha nacional.
+- Escolha confirmada: **só participa quem comentar naquele dia; o exército continua guardado nos outros dias**.
+- Escolha confirmada: **montagem manual do exército, usando pontos do jogo para escolher e comprar armamento**. Evolução automática não foi escolhida.
 
 Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. O usuário confirmou a ordem de trabalho: **separar os projetos e definir as regras primeiro**. O protótipo visual fica para uma etapa posterior.
 
@@ -28,12 +30,14 @@ Esses pontos descrevem a ideia solicitada, não funcionalidades já implementada
 | Continuidade entre dias | Confirmado: tropas e territórios acumulam entre os dias |
 | Perdas de combate | Confirmado: baixas apenas visuais; nenhuma unidade acumulada é removida |
 | Cores dos estados | Confirmado: cor do time com maior força acumulada no estado |
-| Participação diária | Aguardando escolha: todas as bases automaticamente ou só quem comentar no dia, preservando o exército guardado |
-| Conversão de pontos | Aguardando escolha: evolução automática ou montagem manual do exército |
+| Participação diária | Confirmado: comentário no dia ativa a participação; sem comentário o exército fica guardado |
+| Conversão de pontos | Confirmado: escolha manual de armamento com pontos do jogo |
+| Pontos por comentário | Aguardando escolha: só o primeiro comentário válido do dia ou vários com limite diário |
+| Bases inativas e território | Aguardando escolha: todas as forças acumuladas contam para a cor ou somente as que participarem da batalha do dia |
 | Pontos convertidos em unidades | Intenção confirmada; valores, fontes e limites ainda por definir |
 | Empates e troca de time | Ainda por definir |
 
-O usuário respondeu às perguntas sobre vencedor, continuidade, perdas e cores dos estados. Foram enviadas as perguntas seguintes sobre participação diária e conversão de pontos; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
+O usuário respondeu às perguntas sobre vencedor, continuidade, perdas, cores dos estados, participação diária e montagem manual. Foram enviadas as perguntas seguintes sobre pontos por comentário e forças inativas no território; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, valores de pontos e unidades. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
 
 ### Consequências das escolhas confirmadas
 
@@ -41,6 +45,9 @@ O usuário respondeu às perguntas sobre vencedor, continuidade, perdas e cores 
 - A cor de um estado depende da comparação das forças acumuladas ali; um time pode vencer nacionalmente e ainda ter menos força em alguns estados.
 - Explosões e destruição da animação não reduzem o inventário ou o poder acumulado dos participantes.
 - Uma base não deve ser eliminada ou ter seu exército zerado por perder uma batalha.
+- Na batalha nacional só entram os exércitos dos participantes ativados por comentário no dia; os demais continuam guardados.
+- A pessoa escolhe o que comprar; catálogo, preços, força por unidade, pontos não gastos, venda/troca e fechamento das compras ainda precisam de regras.
+- A montagem manual exigirá definir um acesso pessoal à base. Buscar um @ no mapa não pode dar a qualquer visitante o poder de gastar os pontos daquele perfil. O mecanismo de autenticação ainda não foi escolhido ou implementado.
 - Ainda é necessário decidir o fechamento dos dados às 22h, o momento de atualizar as cores e o tratamento de empates nacional/estadual.
 
 ## Propostas do assistente — ainda não aprovadas
@@ -57,10 +64,12 @@ O usuário respondeu às perguntas sobre vencedor, continuidade, perdas e cores 
 ## Decisões em aberto
 
 - Como calcular a força militar total de unidades diferentes e resolver empates?
-- Todas as bases participam diariamente ou somente quem comentar naquele dia?
-- A evolução do armamento é automática ou o participante escolhe como gastar seus pontos do jogo?
+- Como comentários geram pontos e quais os limites por pessoa/dia?
+- Bases inativas no dia continuam influenciando a cor do estado?
+- Qual o catálogo inicial, preços, força por unidade e tratamento dos pontos não gastos?
+- Como o dono acessa sua base e autoriza compras sem permitir edição por outro visitante?
 - Quando atualizar a cor dos estados e como resolver um empate local?
-- Como cada ação dá tropas, qual limite por pessoa/dia e como tratar bots/contas duplicadas?
+- Como tratar comentários duplicados, bots e contas duplicadas?
 - Como equilibrar tamanhos de time, resolver empates e permitir trocar de time?
 - O ponto da base representa apenas o estado ou também uma cidade opcional? O novo formato não fornece cidade; não reutilizar automaticamente o parser de municípios.
 - Transmissão no próprio site ou também vídeo em uma live do Instagram?
