@@ -1,5 +1,9 @@
 # Miniaturas e efeitos do Projeto 2
 
+## Geografia municipal da Bahia
+
+`bahia-municipalities.json` contém os 417 municípios listados pela API de Localidades do IBGE, vinculados aos polígonos da API de Malhas v3 pelos códigos oficiais. Os polígonos usam qualidade intermediária; cada rótulo recebe uma posição representativa dentro do território. Fonte, URLs consultadas, contagem, data e hashes estão em `geography-source.json`. As ruas do protótipo são grade reta estilizada recortada nos estados, criadas pelo código e sem origem em dados viários.
+
 Arte original criada por código para este projeto. Não foram utilizados modelos de terceiros, texturas dos sites de referência, APIs de geração ou créditos pagos.
 
 ## Modelos 3D

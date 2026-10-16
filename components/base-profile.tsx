@@ -1,12 +1,12 @@
 'use client';
 import { ArrowRight, Check, Copy, Crosshair, Flag, MessageCircle, Shield, Star, Swords, Trophy, Users, X, Camera, ChevronRight } from 'lucide-react';
-import { CATALOG, forceOf, RULES, STATES, unitCount, type Base } from '../lib/war/game';
+import { CATALOG, forceOf, RULES, STATES, unitCount, type Base, type UnitKind } from '../lib/war/game';
 import { armyTier, ARMY_TIERS, rankBases, type RankingScope } from '../lib/war/engagement';
 import { earnedPoints, ledgerOf, POINT_LABELS, pointsByKind, SOCIAL_RULES, type PointKind } from '../lib/war/points';
 import './base-profile.css';
 const fmt = (n: number) => n.toLocaleString('pt-BR');
 const COLORS: Record<PointKind, string> = { opening: '#bac6b0', arrival: '#acb8df', comment: '#f4cc61', mention: '#83a966', recruit: '#d38e64', support: '#6caeb9', story: '#c59dc6' };
-type Props = { base: Base; bases: Base[]; own: boolean; locked: boolean; now: number; onClose: () => void; onArsenal: (kind?: Base['inventory'] extends Record<infer K, number> ? K : never) => void; onRanking: (scope: RankingScope) => void; onCopy: (action: 'profile' | 'invite' | 'support') => void; onStory: () => void; onSimulate: () => void };
+type Props = { base: Base; bases: Base[]; own: boolean; locked: boolean; now: number; onClose: () => void; onArsenal: (kind?: UnitKind) => void; onRanking: (scope: RankingScope) => void; onCopy: (action: 'profile' | 'invite' | 'support') => void; onStory: () => void; onSimulate: () => void };
 export default function BaseProfile({ base, bases, own, locked, now, onClose, onArsenal, onRanking, onCopy, onStory, onSimulate }: Props) {
   const tier = armyTier(base), breakdown = pointsByKind(base), earned = earnedPoints(base), state = STATES.find(s => s.uf === base.uf)!, entries = ledgerOf(base).entries;
   const ranks = (['state', 'team', 'all'] as const).map(scope => { const list = rankBases(bases, scope, base); return { scope, rank: list.findIndex(b => b.id === base.id) + 1, total: list.length }; });

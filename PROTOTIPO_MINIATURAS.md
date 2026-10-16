@@ -5,8 +5,9 @@ Entrega de 2026-10-16, após o usuário escolher miniaturas e pedir prosseguir c
 ## O que funciona localmente
 
 - Home própria de guerra, com mapa 3D em tela cheia e 27 UFs obtidas das APIs oficiais do IBGE. Geografia armazenada em aproximadamente 97 KB, com fonte, data de consulta e hash.
+- **Bahia detalhada com os 417 municípios do IBGE**, cada um com nome, código oficial e limite geográfico. Ao selecionar BA, as divisas municipais aparecem; os nomes entram conforme o zoom e se distribuem em pontos internos dos respectivos territórios. Rótulos próximos se alternam para evitar sobreposição, então aproxime e arraste o mapa para percorrer todos. Malha intermediária armazenada localmente (~800 KB); não é carregada de um serviço externo durante o jogo.
 - Busca de perfis/estados, seleção de base, zoom, pan, rotação, tela cheia e interface adaptada a telas estreitas.
-- Bases em quadras com ruas horizontais/verticais recortadas nos polígonos estaduais, incluindo o Distrito Federal. A posição é ilustrativa e representa o estado, sem endereço pessoal ou afirmação de localização municipal.
+- Bases em quadras com ruas horizontais/verticais estilizadas, recortadas nos polígonos estaduais, incluindo o Distrito Federal. Ruas não vêm do IBGE e não representam vias reais. Os nomes municipais da Bahia se ancoram dentro dos respectivos polígonos do IBGE; isso identifica a área do município, não a coordenada do centro urbano/sede.
 - Cinco miniaturas volumétricas próprias: infantaria, tanque, artilharia, drone e avião; versões vermelha e azul, partes animadas, galeria `/arsenal`, GLBs e ZIP.
 - O lote mostra uma miniatura por tipo de equipamento presente. Quantidades reais aparecem no painel e entram integralmente no cálculo de força; a cena não desenha um objeto para cada soldado acumulado.
 - Explosão/fumaça em atlas transparente de 32 quadros, projetado como sprite na cena 3D. Limite de 24 efeitos simultâneos e descarte de texturas.
@@ -49,7 +50,7 @@ Na home, explore a base inicial, abra o arsenal e compre uma unidade. **Criar ba
 
 ## Fontes e reprodução
 
-- `node scripts/sync-ibge.mjs` consulta Localidades e Malhas v3, valida 27 UFs e salva a geografia. A API escolheu seu período padrão; o manifesto não atribui um ano que a resposta não informou.
+- `node scripts/sync-ibge.mjs` consulta Localidades e Malhas v3, valida 27 UFs e os 417 municípios baianos, associa nomes por código oficial e salva as geometrias/posições dos rótulos. A API escolheu seu período padrão; o manifesto não atribui um ano que a resposta não informou.
 - [Documentação IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3).
 - [Assets e proveniência](public/war-assets/ASSETS.md): geradores, limites, hashes, GLBs e sprites originais, sem créditos pagos.
 - Prévia anterior preservada em `app/arsenal/legacy-preview.tsx`; home e modelos de imóveis legados preservados nos arquivos anteriores, sem uso pela home nova.
