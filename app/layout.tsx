@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brasil em Casas",
-  description: "Cada pessoa, um lugar no mapa. Um Brasil inteiro para construir juntos.",
+  title: "Projeto 2",
+  description: "Projeto 2: base do mapa 3D para um novo protótipo de batalha.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
