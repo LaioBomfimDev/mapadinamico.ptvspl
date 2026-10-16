@@ -11,6 +11,8 @@
 - A intenção inicial do usuário é que mais tropas levem à vitória.
 - Escolha confirmada: **uma batalha nacional; vence o time com maior força militar total**.
 - Escolha confirmada: **acumular tropas e territórios entre os dias**. Reinício diário não foi escolhido.
+- Escolha confirmada: **as perdas são apenas visuais; todo o exército acumulado permanece** para os próximos dias.
+- Escolha confirmada: **cada estado fica com a cor do time que tiver maior força acumulada nele**, mantendo uma única batalha nacional.
 
 Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. O usuário confirmou a ordem de trabalho: **separar os projetos e definir as regras primeiro**. O protótipo visual fica para uma etapa posterior.
 
@@ -24,17 +26,27 @@ Esses pontos descrevem a ideia solicitada, não funcionalidades já implementada
 | Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |
 | Vencedor nacional | Confirmado: maior força militar total em uma única batalha nacional |
 | Continuidade entre dias | Confirmado: tropas e territórios acumulam entre os dias |
-| Perdas de combate | Aguardando escolha: unidades destruídas são perdidas ou baixas apenas visuais |
-| Cores dos estados | Aguardando escolha: controle por força acumulada local ou conquista gradual pelo vencedor nacional |
+| Perdas de combate | Confirmado: baixas apenas visuais; nenhuma unidade acumulada é removida |
+| Cores dos estados | Confirmado: cor do time com maior força acumulada no estado |
+| Participação diária | Aguardando escolha: todas as bases automaticamente ou só quem comentar no dia, preservando o exército guardado |
+| Conversão de pontos | Aguardando escolha: evolução automática ou montagem manual do exército |
 | Pontos convertidos em unidades | Intenção confirmada; valores, fontes e limites ainda por definir |
 | Empates e troca de time | Ainda por definir |
 
-O usuário respondeu às perguntas sobre vencedor e continuidade. Foram enviadas as perguntas seguintes sobre perdas e cores dos estados; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
+O usuário respondeu às perguntas sobre vencedor, continuidade, perdas e cores dos estados. Foram enviadas as perguntas seguintes sobre participação diária e conversão de pontos; nenhuma resposta foi presumida. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
+
+### Consequências das escolhas confirmadas
+
+- O vencedor nacional depende da soma da força dos dois times no Brasil inteiro, não da quantidade de estados controlados.
+- A cor de um estado depende da comparação das forças acumuladas ali; um time pode vencer nacionalmente e ainda ter menos força em alguns estados.
+- Explosões e destruição da animação não reduzem o inventário ou o poder acumulado dos participantes.
+- Uma base não deve ser eliminada ou ter seu exército zerado por perder uma batalha.
+- Ainda é necessário decidir o fechamento dos dados às 22h, o momento de atualizar as cores e o tratamento de empates nacional/estadual.
 
 ## Propostas do assistente — ainda não aprovadas
 
 1. Apresentar 13/22 como times escolhidos voluntariamente **nesta partida**, sem inferir ou afirmar voto/filiação política real de uma pessoa a partir do perfil.
-2. **Formato de batalhas estaduais descartado pela escolha posterior:** a disputa será nacional. Os estados continuam como referência visual para bases e territórios; a regra de cores ainda precisa de decisão.
+2. **Formato de batalhas estaduais descartado pela escolha posterior:** a disputa será nacional. Os estados representam bases e controle pela força acumulada local, conforme escolha posterior do usuário.
 3. Começar com três unidades fáceis de distinguir: infantaria, artilharia e apoio aéreo. Drones seriam uma evolução posterior, depois de validar a leitura da batalha.
 4. Preferir uma sequência de 7 minutos de combate e até 1 minuto de resultado, dentro do máximo solicitado. Tempos por fase e empate ainda precisam de decisão.
 5. **Não aprovada como alteração do vencedor:** composição, posições e tipos de unidade poderiam influenciar o combate. A decisão atual mantém a vitória do time com maior força militar total; pesos das unidades e empates ainda serão definidos.
@@ -45,8 +57,9 @@ O usuário respondeu às perguntas sobre vencedor e continuidade. Foram enviadas
 ## Decisões em aberto
 
 - Como calcular a força militar total de unidades diferentes e resolver empates?
-- Tropas destruídas são perdidas de verdade ou as baixas são apenas visuais?
-- Como o resultado nacional altera o controle de cada estado e os territórios acumulados?
+- Todas as bases participam diariamente ou somente quem comentar naquele dia?
+- A evolução do armamento é automática ou o participante escolhe como gastar seus pontos do jogo?
+- Quando atualizar a cor dos estados e como resolver um empate local?
 - Como cada ação dá tropas, qual limite por pessoa/dia e como tratar bots/contas duplicadas?
 - Como equilibrar tamanhos de time, resolver empates e permitir trocar de time?
 - O ponto da base representa apenas o estado ou também uma cidade opcional? O novo formato não fornece cidade; não reutilizar automaticamente o parser de municípios.
