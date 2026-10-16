@@ -10,7 +10,22 @@
 - Exibir a disputa ao vivo, colorir o mapa em vermelho/azul conforme os resultados e mostrar vencedores.
 - A intenção inicial do usuário é que mais tropas levem à vitória.
 
-Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. A pergunta enviada nesta etapa distingue separar/fechar regras de já construir um protótipo visual.
+Esses pontos descrevem a ideia solicitada, não funcionalidades já implementadas. O usuário confirmou a ordem de trabalho: **separar os projetos e definir as regras primeiro**. O protótipo visual fica para uma etapa posterior.
+
+## Ordem atual de definição
+
+| Tema | Estado |
+| --- | --- |
+| Separação dos projetos | Concluída: Projeto 1 preservado e Projeto 2 com Git local separado |
+| Etapa atual | Confirmada: definição das regras antes do protótipo visual |
+| Horário e duração | Direção do usuário: diariamente às 22h de Brasília; 5–10 minutos |
+| Vitória | Direção inicial do usuário: maior exército vence; composição/posicionamento seguem apenas como alternativa sugerida |
+| Vencedor nacional | Aguardando escolha: mais estados conquistados ou maior força nacional total |
+| Continuidade entre dias | Aguardando escolha: reiniciar tropas/territórios, manter só territórios ou acumular ambos |
+| Pontos convertidos em unidades | Intenção confirmada; valores, fontes e limites ainda por definir |
+| Empates e troca de time | Ainda por definir |
+
+Foram enviadas duas perguntas sobre vencedor nacional e continuidade entre dias. Nenhuma opção foi adotada automaticamente. Depois dessas decisões, definir inscrição por autor, momento de fechamento, ganho de unidades e limites por rodada. Não interpretar a decisão de definir regras primeiro como aprovação das propostas abaixo.
 
 ## Propostas do assistente — ainda não aprovadas
 
