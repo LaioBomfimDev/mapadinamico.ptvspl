@@ -19,6 +19,10 @@ O `package.json` seleciona Node 22.x para evitar que a Vercel interprete `>=22.1
 
 O comando `build:vercel` usa o Next.js instalado e gera o app com a saída padrão do framework. A build não precisa de credenciais Cloudflare ou Instagram para publicar a demonstração.
 
+## Servidor do jogo e chat ao vivo (Supabase)
+
+Para o mapa compartilhado e o super chat/áudio chegarem a todos os visitantes, configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `MAP_ADMIN_TOKEN` conforme [CONFIGURAR_SUPABASE.md](CONFIGURAR_SUPABASE.md) e faça um novo deploy. Sem essas variáveis, o site publica a demonstração local.
+
 ## Variáveis opcionais
 
 Não configure nenhuma variável para publicar e experimentar o mapa de batalha local no navegador. Para usar as rotas herdadas de moradores com D1, configure apenas no servidor de produção:

@@ -1,5 +1,24 @@
 # Conectar o Instagram quando a conta for escolhida
 
+## Projeto 2 — situação em 17/10/2026
+
+**Conta escolhida pelo usuário:** `@vocee13ou22` (criada em 17/10/2026). Nenhum app Meta, token, post oficial ou variável de ambiente foi configurado ainda.
+
+**Requisitos conferidos na documentação oficial da Meta em 17/10/2026** ([webhooks](https://developers.facebook.com/docs/instagram-platform/webhooks/), [respostas privadas](https://developers.facebook.com/docs/instagram-platform/private-replies)):
+
+- A conta precisa ser **profissional** (Criador ou Empresa) e **pública** para gerar notificações de comentários.
+- Webhook de `comments` exige app em modo **Live**, **Acesso Avançado** e **Verificação da Empresa**, com `instagram_business_basic` + `instagram_business_manage_comments`. Acesso Avançado passa por **Análise do App** (política de privacidade, termos, exclusão de dados e vídeo mostrando o uso).
+- A conta é inscrita no app por `POST /{id}/subscribed_apps?subscribed_fields=comments`. Notificações podem vir em lote, ser repetidas por até 36 h e precisam de resposta `200` rápida; deduplicar sempre.
+- Resposta privada (DM) ao autor de um comentário: uma única mensagem, até 7 dias após o comentário; continuação só se a pessoa responder (janela de 24 h).
+
+**Lacunas do Projeto 2, independentes da Meta:** ~~banco compartilhado~~, ~~cadastro, pontos e compras no servidor~~, ~~site lendo o estado do servidor~~ (feitos em 17/10, ver [CONFIGURAR_SUPABASE.md](CONFIGURAR_SUPABASE.md)); faltam batalha das 22h no servidor, forma de o dono acessar a própria base, páginas de privacidade/termos/exclusão de dados e adaptar o receptor herdado abaixo (grava **casas** do Projeto 1) para chamar `registerServerComment` com o ID e o @ informados pela Meta.
+
+**Hipótese a testar antes da aprovação:** ler os comentários do próprio post pela API (`GET /{media-id}/comments`) com o acesso padrão, por sincronização periódica, para testar o fluxo sem webhook. Não confirmado.
+
+O texto a seguir descreve a integração herdada do Projeto 1 e permanece como histórico.
+
+## Histórico do Projeto 1
+
 O pedido atual é deixar o mapa funcionando e a integração aguardando. Nenhuma conta, post, senha ou token de Instagram foi configurado. O receptor está implementado; uma entrega real da Meta ainda precisa ser validada.
 
 ## Como funciona

@@ -15,9 +15,20 @@
 - No desktop o painel abre ao lado da faixa; no celular ocupa a largura da tela. Com a ficha de uma base aberta, a faixa vai para a direita da ficha (desktop) ou some (celular). A legenda "Seu exército faz parte dessa história" se esconde enquanto houver mensagens ou painel aberto.
 - Escolhas provisórias do assistente para testar, **não aprovadas pelo usuário**: super chat gratuito, limite de 120 caracteres e 15 s de áudio, intervalo de 4 s entre mensagens da mesma aba, links recusados, fila de até 30 mensagens esperando para subir, áudio só toca quando alguém clica (sem reprodução automática).
 
-## Limite importante
+## Atualização 17/10 — chat para todos pelo servidor
 
-**Nesta prévia, "todo mundo" significa as abas abertas no mesmo navegador.** O envio usa `BroadcastChannel`; não há servidor. Para que todos os visitantes do site vejam a mensagem, falta escolher e ligar um serviço em tempo real (por exemplo WebSocket próprio, Supabase Realtime, Pusher ou Ably), guardar os áudios em algum armazenamento, e moderar o conteúdo antes de exibir (palavrões, ataques, spam, contas falsas). Também falta decidir se o super chat é pago (dinheiro ou pontos do jogo); não há pagamento implementado.
+O usuário relatou que o super chat não funcionava (a primeira versão só passava entre abas do mesmo navegador). Com o Supabase escolhido pelo usuário, o chat agora passa pelo servidor quando ele está configurado:
+
+- O navegador envia para `POST /api/live` (texto em JSON ou áudio em formulário). O servidor valida (sem links, 120 caracteres, áudio de 0,6–15 s e até ~900 KB), limita o ritmo a 1 mensagem a cada 4 s por visitante (endereço de rede transformado em código com segredo, não guardado) e grava em `live_messages`. Áudios vão para a pasta pública `live-audio` do Supabase Storage.
+- Todos recebem pelo tempo real do Supabase (`postgres_changes` em `live_messages`, leitura liberada só para mensagens recentes; o navegador não consegue gravar). Se o tempo real não estiver configurado ou falhar, o navegador consulta `GET /api/live` a cada 3 s.
+- Sem Supabase configurado, continua a demonstração entre abas (`BroadcastChannel`).
+- Configuração: [CONFIGURAR_SUPABASE.md](CONFIGURAR_SUPABASE.md). Migração: `supabase/migrations/20261017130000_chat_ao_vivo.sql`.
+
+**Verificação:** 6 testes novos (`tests/war-live-server.test.mjs`) em Postgres embutido com o Supabase local de teste: envio e leitura, limite de ritmo por visitante, recusas antes do banco, áudio guardado e servido, arquivo apagado quando o envio é recusado, navegador sem permissão de escrita. No navegador, com duas abas no modo servidor (canal entre abas desligado): super chat de uma aba subiu na outra; áudio gravado em uma (tom sintético no lugar do microfone) chegou à outra, tocou e o arquivo veio do armazenamento (35 KB, audio/webm). Build de produção aprovado. **Não verificado:** tempo real do Supabase de verdade (o teste local usou a consulta a cada 3 s), microfone físico, Safari/iOS.
+
+## Limite que continua
+
+Ainda faltam moderação de conteúdo (palavrões, ataques, spam, contas falsas) e a decisão sobre super chat pago (dinheiro ou pontos do jogo). O contador de pessoas assistindo continua simulado; o tempo real do Supabase pode contar conexões reais numa próxima etapa.
 
 O contador de pessoas assistindo é fictício. Quando houver o servidor ao vivo, ele pode contar conexões reais; mostrar um número inventado num site público engana os visitantes.
 
