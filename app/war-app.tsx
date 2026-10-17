@@ -1,16 +1,17 @@
 'use client';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { ArrowRight, Check, ChevronDown, Crosshair, Flag, HelpCircle, Home, MapPin, Maximize2, Pause, Plane, Play, Plus, Radar, RotateCcw, Search, Settings2, Shield, Swords, Trophy, Users, VolumeX, X, Zap, Minus, Download, Clock3 } from 'lucide-react';
 import { CATALOG, RULES, STATES, buyUnit, controlOf, createDemo, emptyGame, finishBattle, forceOf, makeBattle, normalize, parseComment, registerComment, score, secondsToBattle, unitCount, validateSaved, type Base, type Battle, type GameState, type UnitKind, type Team } from '../lib/war/game';
 import type { CameraCommand } from '../components/war-world';
 import BaseProfile from '../components/base-profile';
+import MapLoader, { type MapLoadingStatus } from '../components/map-loader';
 import { processEngagement, rankBases, type RankingScope } from '../lib/war/engagement';
 import { earnedPoints } from '../lib/war/points';
 import { makeStoryCard } from '../lib/war/story-card';
 import type { MunicipalityIndexItem } from '../lib/war/geography';
 import './war.css';
-const WarWorld = dynamic(() => import('../components/war-world'), { ssr: false, loading: () => <div className="war-loading"><span className="loader" />Carregando o Brasil…</div> });
+const WarWorld = dynamic(() => import('../components/war-world'), { ssr: false, loading: () => null });
 const UnitViewer = dynamic(() => import('../components/unit-viewer'), { ssr: false });
 const SAVE_KEY = 'projeto2:miniaturas:v1';
 const fmt = (value: number) => value.toLocaleString('pt-BR');
@@ -20,6 +21,8 @@ const UnitIcon = ({ kind, size = 22 }: { kind: UnitKind; size?: number }) => { c
 type MapSearchMatch = { key: string; label: string; sub: string; kind: 'base' | 'state' | 'municipality'; baseId?: string; uf?: string; cityId?: string };
 type Modal = 'help' | 'ranking' | 'register' | 'rules' | 'arsenal' | 'history' | 'result' | 'reset' | 'story' | 'engagement' | 'share' | null;
 export default function WarApp() {
+  const [mapLoading, setMapLoading] = useState<MapLoadingStatus>({progress:8,message:'Carregando o Brasil em miniatura'});
+  const onMapLoading = useCallback((status: MapLoadingStatus) => setMapLoading(status), []);
   const [game, setGame] = useState<GameState>(createDemo), [loaded, setLoaded] = useState(false), [ownId, setOwnId] = useState('demo-you');
   const [selected, setSelected] = useState<string>(), [selectedUF, setSelectedUF] = useState<string>(), [selectedMunicipality, setSelectedMunicipality] = useState<string>(), [command, setCommand] = useState<CameraCommand>(), [query, setQuery] = useState(''), [municipalities, setMunicipalities] = useState<MunicipalityIndexItem[]>([]), [municipalityStatus, setMunicipalityStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [modal, setModal] = useState<Modal>(null), [notice, setNotice] = useState(''), [storageError, setStorageError] = useState(false), [now, setNow] = useState<number | null>(null);
@@ -64,7 +67,8 @@ export default function WarApp() {
   const reset = (demo: boolean) => { setGame(demo ? createDemo() : emptyGame()); setOwnId(demo ? 'demo-you' : ''); setSelected(undefined); setSelectedUF(undefined); setSelectedMunicipality(undefined); setModal(null); sendCamera('reset'); setNotice(demo ? 'Demonstração restaurada com bases fictícias.' : 'Mapa vazio. Simule um comentário para criar a primeira base.'); };
   const close = () => setModal(null);
   return <main className={`war-experience ${base ? 'has-profile' : ''}`} ref={shell}>
-    <WarWorld bases={game.bases} controls={displayedControls} municipalityIndex={municipalities} selected={selected} selectedUF={selectedUF} selectedMunicipality={selectedMunicipality} command={command} battle={battle} elapsed={elapsed} suspended={!!modal} onBase={pickBase} onState={pickState} onMunicipality={pickMunicipality} />
+    <MapLoader status={mapLoading} />
+    <WarWorld onLoading={onMapLoading} bases={game.bases} controls={displayedControls} municipalityIndex={municipalities} selected={selected} selectedUF={selectedUF} selectedMunicipality={selectedMunicipality} command={command} battle={battle} elapsed={elapsed} suspended={!!modal} onBase={pickBase} onState={pickState} onMunicipality={pickMunicipality} />
     <header className="war-header"><div className="war-wordmark"><span className="wordmark-mark"><Swords size={25} /></span><div><span className="war-kicker">PROJETO 2</span><h1>Brasil em <em>batalha</em></h1></div></div><div className="war-search-wrap"><form className="war-search" onSubmit={e => { e.preventDefault(); if (matches[0]) chooseSearchMatch(matches[0]); }}><Search size={19} /><input aria-label="Buscar base, estado ou município da Bahia" placeholder="Busque @, estado ou cidade da Bahia" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" /><button aria-label="Buscar"><ArrowRight size={20} /></button></form>{query && <div className="war-search-results">{matches.map(match => <button key={match.key} onClick={() => chooseSearchMatch(match)}><MapPin size={16} /><span><strong>{match.label}</strong><small>{match.sub}</small></span><ArrowRight size={14} /></button>)}{!matches.length && <p>{municipalityStatus === 'loading' ? 'Carregando os 417 municípios da Bahia…' : municipalityStatus === 'error' ? 'Não foi possível carregar a lista de municípios.' : 'Nenhuma base, cidade da Bahia ou estado encontrado.'}</p>}</div>}</div><button className="war-icon help" aria-label="Como funciona" onClick={() => setModal('help')}><HelpCircle size={22} /></button></header>
     {selectedUF === 'BA' && <aside className="city-focus" role="status"><MapPin size={19} /><span><small>{focusedMunicipality ? 'MUNICÍPIO SELECIONADO · BAHIA' : 'MAPA MUNICIPAL DA BAHIA'}</small><strong>{focusedMunicipality?.name || (municipalityStatus === 'ready' ? '417 municípios do IBGE' : municipalityStatus === 'error' ? 'Cidades indisponíveis' : 'Carregando municípios…')}</strong><small>{focusedMunicipality ? `IBGE ${focusedMunicipality.id} · área destacada` : 'Busque Catu ou clique em uma cidade'}</small></span>{focusedMunicipality && <button onClick={() => { setSelectedMunicipality(undefined); sendCamera('focus', undefined, 'BA'); }} aria-label="Voltar para toda a Bahia"><X size={16} /></button>}</aside>}
     <div className="demo-label"><span />DEMONSTRAÇÃO <b>·</b> dados fictícios</div>
