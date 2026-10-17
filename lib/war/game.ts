@@ -27,7 +27,7 @@ export const STATES = [
   { id: '51', uf: 'MT', name: 'Mato Grosso', lng: -56, lat: -13 }, { id: '52', uf: 'GO', name: 'Goiás', lng: -49.7, lat: -16 },
   { id: '53', uf: 'DF', name: 'Distrito Federal', lng: -47.8, lat: -15.75 },
 ] as const;
-export type Base = { id: string; username: string; uf: string; team: Team; inventory: Inventory; credits: number; joinedAt: string; commentDay: string; rewardedComments: number; progress?: PointLedger };
+export type Base = { id: string; username: string; uf: string; municipalityId?: string; team: Team; inventory: Inventory; credits: number; joinedAt: string; commentDay: string; rewardedComments: number; progress?: PointLedger };
 export type Control = Record<string, Team | 'neutral'>;
 export type BattleRecord = { id: string; at: string; winner: Team | 'draw'; red: number; blue: number; controls: Control };
 export type GameState = { version: 1; bases: Base[]; receipts: string[]; history: BattleRecord[] };
@@ -47,23 +47,24 @@ export function score(bases: Base[]) {
 export function controlOf(bases: Base[]): Control {
   return Object.fromEntries(STATES.map(state => { const total = score(bases.filter(base => base.uf === state.uf)); return [state.uf, total.red === total.blue ? 'neutral' : total.red > total.blue ? 'red' : 'blue']; }));
 }
-export function parseComment(text: string) {
+export function parseComment(text: string, municipalities: readonly { id: string; name: string }[] = []) {
   const match = text.trim().match(/^@([a-z\d._]{1,30})\s+(.+?)\s+(13|22|pt|pl)$/i);
-  if (!match) throw Error('Use o formato @seunome BA 13 ou @seunome SP 22.');
-  const state = STATES.find(s => normalize(s.uf) === normalize(match[2]) || normalize(s.name) === normalize(match[2]));
-  if (!state) throw Error('Estado não reconhecido. Use uma das 27 siglas, como BA, SP ou DF.');
-  return { username: match[1].toLowerCase(), uf: state.uf, team: /^(13|pt)$/i.test(match[3]) ? 'red' as const : 'blue' as const };
+  if (!match) throw Error('Use @seunome Catu BA 13 na Bahia ou @seunome SP 22 nos outros estados.');
+  const location = normalize(match[2]), city = municipalities.find(item => location === `${normalize(item.name)} ba` || location === `ba ${normalize(item.name)}`);
+  const state = city ? STATES.find(s => s.uf === 'BA') : STATES.find(s => normalize(s.uf) === location || normalize(s.name) === location);
+  if (!state) throw Error('Local não reconhecido. Na Bahia, informe também o município, por exemplo: @seunome Catu BA 13.');
+  return { username: match[1].toLowerCase(), uf: state.uf, municipalityId: city?.id, team: /^(13|pt)$/i.test(match[3]) ? 'red' as const : 'blue' as const };
 }
-export function registerComment(game: GameState, text: string, commentId: string, now: number) {
+export function registerComment(game: GameState, text: string, commentId: string, now: number, municipalities: readonly { id: string; name: string }[] = []) {
   if (!Number.isFinite(now) || !commentId.trim() || commentId.length > 200) throw Error('Comentário sem identificação válida.');
   if (game.receipts.includes(commentId)) return { game, base: null, awarded: false, duplicate: true };
   if (game.receipts.length >= 5000) throw Error('Limite de comentários desta demonstração atingido.');
-  const parsed = parseComment(text), day = dayInBrazil(now);
+  const parsed = parseComment(text, municipalities), day = dayInBrazil(now);
   let base = game.bases.find(b => b.username === parsed.username);
-  if (base && (base.uf !== parsed.uf || base.team !== parsed.team)) throw Error('Este perfil já tem uma base. Nesta prévia, estado e time permanecem os mesmos.');
+  if (base && (base.uf !== parsed.uf || base.team !== parsed.team || (base.municipalityId && base.municipalityId !== parsed.municipalityId))) throw Error('Este perfil já tem uma base. Nesta prévia, estado, município e time permanecem os mesmos.');
   if (!base && game.bases.length >= 1000) throw Error('Limite de bases desta demonstração atingido.');
   const first = !base;
-  base = base ? { ...base, inventory: { ...base.inventory } } : { ...parsed, id: `local-${parsed.username}`, inventory: { ...emptyInventory(), infantry: 3 }, credits: 0, joinedAt: new Date(now).toISOString(), commentDay: day, rewardedComments: 0, progress: { entries: [] } };
+  base = base ? { ...base, municipalityId: base.municipalityId || parsed.municipalityId, inventory: { ...base.inventory } } : { ...parsed, id: `local-${parsed.username}`, inventory: { ...emptyInventory(), infantry: 3 }, credits: 0, joinedAt: new Date(now).toISOString(), commentDay: day, rewardedComments: 0, progress: { entries: [] } };
   if (base.commentDay !== day) { base.commentDay = day; base.rewardedComments = 0; }
   const awarded = base.rewardedComments < RULES.dailyCommentCap;
   if (awarded) { base = awardPoints(base, { key: `comment:${commentId}`, kind: first ? 'arrival' : 'comment', points: RULES.pointsPerComment, at: new Date(now).toISOString() }); base.rewardedComments++; }
@@ -106,9 +107,9 @@ export function createDemo(): GameState {
   const bases: Base[] = [];
   STATES.forEach((state, i) => { for (let j = 0; j < 3; j++) {
     const team: Team = (i + j) % 2 ? 'blue' : 'red';
-    bases.push({ id: `demo-${state.uf}-${j}`, username: `${names[(i + j) % names.length]}_${state.uf.toLowerCase()}_${j + 1}`, uf: state.uf, team, inventory: { infantry: 4 + Math.floor(rng() * 8), tank: Math.floor(rng() * 3), artillery: Math.floor(rng() * 3), drone: 1 + Math.floor(rng() * 3), aircraft: Math.floor(rng() * 2) }, credits: 0, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
+    bases.push({ id: `demo-${state.uf}-${j}`, username: `${names[(i + j) % names.length]}_${state.uf.toLowerCase()}_${j + 1}`, uf: state.uf, ...(state.uf === 'BA' ? { municipalityId: ['2927408', '2910800', '2900702'][j] } : {}), team, inventory: { infantry: 4 + Math.floor(rng() * 8), tank: Math.floor(rng() * 3), artillery: Math.floor(rng() * 3), drone: 1 + Math.floor(rng() * 3), aircraft: Math.floor(rng() * 2) }, credits: 0, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
   } });
-  bases.push({ id: 'demo-you', username: 'voce_demo', uf: 'BA', team: 'red', inventory: { infantry: 6, tank: 1, artillery: 1, drone: 1, aircraft: 0 }, credits: 180, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
+  bases.push({ id: 'demo-you', username: 'voce_demo', uf: 'BA', municipalityId: '2907509', team: 'red', inventory: { infantry: 6, tank: 1, artillery: 1, drone: 1, aircraft: 0 }, credits: 180, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
   return { ...emptyGame(), bases };
 }
 export function validateSaved(value: unknown): GameState | null {
@@ -117,7 +118,7 @@ export function validateSaved(value: unknown): GameState | null {
   if (game.version !== 1 || !Array.isArray(game.bases) || game.bases.length > 1000 || !Array.isArray(game.receipts) || game.receipts.length > 5000 || !Array.isArray(game.history) || game.history.length > 10) return null;
   const ids = new Set(), names = new Set();
   for (const b of game.bases) {
-    if (!b || typeof b.id !== 'string' || b.id.length > 80 || typeof b.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(b.username) || ids.has(b.id) || names.has(b.username) || !STATES.some(s => s.uf === b.uf) || !['red', 'blue'].includes(b.team) || !Number.isSafeInteger(b.credits) || b.credits < 0 || b.credits > 10000000 || !Number.isInteger(b.rewardedComments) || b.rewardedComments < 0 || b.rewardedComments > RULES.dailyCommentCap || typeof b.commentDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.commentDay) || typeof b.joinedAt !== 'string' || !Number.isFinite(Date.parse(b.joinedAt)) || !b.inventory || !CATALOG.every(u => Number.isInteger(b.inventory[u.kind]) && b.inventory[u.kind] >= 0 && b.inventory[u.kind] <= 10000)) return null;
+    if (!b || typeof b.id !== 'string' || b.id.length > 80 || typeof b.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(b.username) || ids.has(b.id) || names.has(b.username) || !STATES.some(s => s.uf === b.uf) || (b.municipalityId !== undefined && (b.uf !== 'BA' || !/^29\d{5}$/.test(b.municipalityId))) || !['red', 'blue'].includes(b.team) || !Number.isSafeInteger(b.credits) || b.credits < 0 || b.credits > 10000000 || !Number.isInteger(b.rewardedComments) || b.rewardedComments < 0 || b.rewardedComments > RULES.dailyCommentCap || typeof b.commentDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.commentDay) || typeof b.joinedAt !== 'string' || !Number.isFinite(Date.parse(b.joinedAt)) || !b.inventory || !CATALOG.every(u => Number.isInteger(b.inventory[u.kind]) && b.inventory[u.kind] >= 0 && b.inventory[u.kind] <= 10000)) return null;
     ids.add(b.id); names.add(b.username);
     if (b.progress !== undefined && !validLedger(b.progress)) return null;
   }

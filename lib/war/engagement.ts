@@ -1,5 +1,5 @@
 import { dayInBrazil, forceOf, type Base, type GameState } from './game.ts';
-import { awardPoints, ledgerOf, SOCIAL_RULES, type PointKind } from './points.ts';
+import { awardPoints, earnedPoints, ledgerOf, SOCIAL_RULES, type PointKind } from './points.ts';
 
 /** Domain input only. A production adapter must authenticate and validate Meta receipts before calling it. */
 export type EngagementEvent = { id: string; post: string; kind: 'mention' | 'support' | 'story'; actor: string; target?: string; at: number; verified: boolean };
@@ -27,5 +27,23 @@ export function armyTier(base: Base) {
   const force = forceOf(base), index = ARMY_TIERS.findLastIndex(t => force >= t.force), current = ARMY_TIERS[index], next = ARMY_TIERS[index + 1];
   return { index, current, next, missing: next ? next.force - force : 0, percent: next ? (force - current.force) / (next.force - current.force) * 100 : 100 };
 }
-export type RankingScope = 'all' | 'state' | 'team';
-export function rankBases(bases: Base[], scope: RankingScope = 'all', base?: Base) { return bases.filter(b => scope === 'all' || scope === 'state' && b.uf === base?.uf || scope === 'team' && b.team === base?.team).sort((a, b) => forceOf(b) - forceOf(a) || a.id.localeCompare(b.id)); }
+export type RankingScope = 'all' | 'state' | 'team' | 'city';
+export function rankBases(bases: Base[], scope: RankingScope = 'all', base?: Base) {
+  const eligible = bases.filter(b => scope === 'all' || scope === 'state' && b.uf === base?.uf || scope === 'team' && b.team === base?.team || scope === 'city' && !!base?.municipalityId && b.municipalityId === base.municipalityId);
+  return eligible.sort((a, b) => scope === 'city' ? earnedPoints(b) - earnedPoints(a) || a.id.localeCompare(b.id) : forceOf(b) - forceOf(a) || a.id.localeCompare(b.id));
+}
+export function cityStanding(bases: Base[], base: Base) {
+  const residents = rankBases(bases, 'city', base), points = earnedPoints(base), rank = residents.filter(resident => earnedPoints(resident) > points).length + 1;
+  const topPoints = residents.length ? earnedPoints(residents[0]) : 0, leaders = residents.filter(resident => earnedPoints(resident) === topPoints);
+  return { residents, points, rank, topPoints, leaders, marechal: leaders.length === 1 && topPoints > 0 ? leaders[0] : null, tied: leaders.length > 1 || topPoints === 0 && residents.length > 0 };
+}
+export function cityMarechals(bases: Base[]) {
+  const cities = new Map<string, Base[]>();
+  for (const base of bases) if (base.municipalityId) { const residents = cities.get(base.municipalityId) || []; residents.push(base); cities.set(base.municipalityId, residents); }
+  const result = new Map<string, Base>();
+  for (const [cityId, residents] of cities) {
+    const top = Math.max(...residents.map(earnedPoints)), leaders = residents.filter(base => earnedPoints(base) === top);
+    if (top > 0 && leaders.length === 1) result.set(cityId, leaders[0]);
+  }
+  return result;
+}

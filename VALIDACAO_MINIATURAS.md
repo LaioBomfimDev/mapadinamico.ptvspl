@@ -48,3 +48,9 @@ Build final `npm run build:vercel` concluída com saída 0 (compilação, TypeSc
 2026-10-16. `node scripts/sync-ibge.mjs` consultou as APIs oficiais de Localidades e Malhas v3 e salvou a lista completa de **417 municípios** com códigos IBGE, polígonos em qualidade intermediária e pontos internos para os nomes. A geração rejeita contagens divergentes, códigos repetidos, geometrias inválidas e rótulos fora de seus territórios. Arquivo final: `public/war-assets/bahia-municipalities.json` (~795 KB); origem, data e SHA-256 em `geography-source.json`.
 
 A camada de limites aparece ao selecionar Bahia. Os rótulos entram com zoom e suprimem temporariamente colisões visuais; aproximar e arrastar revela os demais. Ruas seguem como linhas retas estilizadas, sem dados de vias do IBGE. `npm run build:vercel` compilou a alteração e concluiu a checagem TypeScript. Não foi feito teste visual WebGL nesta atualização nem deploy remoto.
+
+## Atualização — vínculo IBGE, Marechal e lotes municipais
+
+2026-10-17. Bases da Bahia passam a salvar o código IBGE vindo do nome oficial no comentário; a ficha apresenta o ranking por pontos acumulados da própria cidade, sem descontar pontos gastos. O líder único recebe o título e a marca visual “MARECHAL”; em empate, o título fica vazio. Bases antigas fictícias recebem municípios demonstrativos, e uma base local antiga sem município pode ser vinculada uma vez.
+
+Ao abrir Bahia ou selecionar uma base baiana, a geometria é carregada sob demanda e os lotes/ruas da cidade são recalculados dentro do polígono municipal. As ruas de cada município são desenhadas em uma única malha para conter chamadas WebGL. As outras UFs continuam usando lotes estaduais. `npm run typecheck:vercel` e `npm run build:vercel` passaram na versão final. Não rodei os testes automatizados nem fiz nova inspeção visual no navegador nesta revisão; o build não valida o comportamento espacial em aparelho real. Não foi feito deploy remoto.

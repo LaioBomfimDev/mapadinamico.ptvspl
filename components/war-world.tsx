@@ -9,6 +9,7 @@ import { createTeamBadge, faceTeamBadge } from '../lib/war/team-badges';
 import { createBaseCamp, CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp';
 import { baseLots, clippedStreet, inRing, projectedState, project, stateBounds, type MunicipalityIndexItem, type Point, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind } from '../lib/war/game';
+import { cityMarechals } from '../lib/war/engagement';
 
 export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'focus-city' | 'rotate' | 'rebuild'; serial: number; baseId?: string; uf?: string; cityId?: string };
 type MunicipalityGeometry = { id: string; name: string; polygons: Point[][][]; label: Point; labelSize: number };
@@ -36,7 +37,7 @@ type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THRE
 export default function WarWorld(props: Props) {
   const host = useRef<HTMLDivElement>(null), runtime = useRef<Runtime | null>(null), latest = useRef(props), fired = useRef(new Set<number>()), lastBattle = useRef('');
   latest.current = props;
-  const [ready, setReady] = useState(false), [failure, setFailure] = useState('');
+  const [ready, setReady] = useState(false), [failure, setFailure] = useState(''), [municipalityRevision, setMunicipalityRevision] = useState(0);
   useEffect(() => {
     if (!host.current) return;
     setReady(false);
@@ -66,7 +67,7 @@ export default function WarWorld(props: Props) {
           const cityLabel = cityId ? r.municipalityLabels.children.find(label => label.userData.cityId === cityId) as THREE.Sprite | undefined : undefined;
           const cityIndex = cityId ? latest.current.municipalityIndex.find(item => item.id === cityId) : undefined;
           const cityPoint = cityIndex ? project(cityIndex.label[0], cityIndex.label[1]) : undefined;
-          let p = cityLabel?.position.clone() ?? (cityPoint ? new THREE.Vector3(cityPoint[0], .84, cityPoint[1]) : id ? r.positions.get(id)?.clone() : undefined);
+          let p = (id ? r.positions.get(id)?.clone() : undefined) ?? cityLabel?.position.clone() ?? (cityPoint ? new THREE.Vector3(cityPoint[0], .84, cityPoint[1]) : undefined);
           if (cityId) { const cityGeometry = r.municipalityById.get(cityId), extent = cityGeometry ? municipalityExtent(cityGeometry) : undefined, width = Math.max(extent?.width || 0, extent?.height || 0); camera.zoom = extent ? THREE.MathUtils.clamp(20 / Math.max(width, .18), 12, 100) : Math.min(42, Math.max(12, 22 / Math.max(cityLabel?.scale.x ?? 0, cityIndex?.labelSize || 0, .18))); r.highlightMunicipality(cityId); }
           if (!p && state) { const b = stateBounds(state); p = new THREE.Vector3((b.minX + b.maxX) / 2, .7, (b.minZ + b.maxZ) / 2); camera.zoom = Math.min(24, 35 / Math.max(b.maxX - b.minX, b.maxZ - b.minZ)); }
           else if (p && !cityId) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 22 / size); }
@@ -118,9 +119,10 @@ export default function WarWorld(props: Props) {
             }
             const boundaryGeometry = new THREE.BufferGeometry(); boundaryGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
             owned!.municipalityBorders.add(new THREE.LineSegments(boundaryGeometry, new THREE.LineBasicMaterial({ color: '#71835a', transparent: true, opacity: .82, toneMapped: false })));
+            setMunicipalityRevision(value => value + 1);
             layoutDirty = true;
-            const cityId = latest.current.selectedMunicipality;
-            if (cityId) owned!.focus(undefined, 'BA', cityId); else owned!.draw();
+            const cityId = latest.current.selectedMunicipality, selectedBaseId = latest.current.selected;
+            if (cityId) owned!.focus(selectedBaseId, 'BA', cityId); else owned!.draw();
           })().catch(error => {
             municipalityPromise = null;
             if (!cancelled) setFailure(error instanceof Error ? error.message : 'Falha ao carregar os municípios da Bahia.');
@@ -197,6 +199,7 @@ export default function WarWorld(props: Props) {
             for (const decoration of group.userData.decorations as THREE.Object3D[]) visible(decoration, detail);
             group.userData.models.forEach((unit: THREE.Group) => { visible(unit, detail && !casualties.has(unit.userData.visualKey)); if (unit.visible) { animateUnit(unit, time / 1000, !!activeBattle); faceTeamBadge(unit, camera); } });
             visible(group.userData.marker, !detail); faceTeamBadge(group.userData.marker, camera); visible(group.userData.name, current.selected === id || camera.zoom > 9);
+            if (group.userData.marechal) visible(group.userData.marechal, current.selected === id || current.selectedMunicipality === group.userData.municipalityId || camera.zoom > 9);
           }
           for (const child of bases.children) if (child.userData.street) visible(child, camera.zoom > 2.5);
           if (activeBattle) {
@@ -226,26 +229,52 @@ export default function WarWorld(props: Props) {
   useEffect(() => {
     const r = runtime.current; if (!r || !ready) return;
     for (const child of [...r.bases.children]) { r.bases.remove(child); disposeTree(child); } r.positions.clear(); r.groups.clear();
+    const marechals = cityMarechals(props.bases);
+    const addBase = (base: Base, lot: { x: number; z: number; size: number; spacing: number }) => {
+      const size = Math.min(lot.size, 2.3);
+      const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, municipalityId: base.municipalityId, size, team: base.team, models: [], kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
+      const camp = createBaseCamp(base.team, size); group.add(camp); group.userData.decorations = [camp];
+      const marker = createTeamBadge(base.team); marker.scale.setScalar(1.8); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
+      if (base.municipalityId && marechals.get(base.municipalityId)?.id === base.id) { const marshal = plaque('MARECHAL', '#9a7415', Math.max(size * 1.7, .05), true); marshal.position.set(0, size * 1.35, size * .8); marshal.visible = false; group.add(marshal); group.userData.marechal = marshal; }
+      const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.05, .08), true); name.position.set(0, size * .18, size * .86); name.visible = false; group.add(name); group.userData.name = name;
+      r.bases.add(group); r.groups.set(base.id, group);
+    };
+    const addStreets = (shape: StateGeometry, lots: { x: number; z: number; size: number; spacing: number }[]) => {
+      if (!lots.length) return;
+      const streets = new Set<string>(); for (const lot of lots) { const halfStep = lot.spacing / 2; for (const x of [lot.x - halfStep, lot.x + halfStep]) streets.add(`z:${x}`); for (const z of [lot.z - halfStep, lot.z + halfStep]) streets.add(`x:${z}`); }
+      const vertices: number[] = [], width = Math.min(lots[0].size * .13, .11);
+      for (const street of streets) { const [axis, raw] = street.split(':'); for (const [a, b] of clippedStreet(shape, axis as 'x' | 'z', Number(raw))) { const dx = b[0] - a[0], dz = b[1] - a[1], length = Math.hypot(dx, dz); if (length < .0001) continue; const px = -dz / length * width / 2, pz = dx / length * width / 2; vertices.push(a[0] + px, .666, a[1] + pz, b[0] + px, .666, b[1] + pz, b[0] - px, .666, b[1] - pz, a[0] + px, .666, a[1] + pz, b[0] - px, .666, b[1] - pz, a[0] - px, .666, a[1] - pz); } }
+      if (vertices.length) { const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); const road = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: '#d6d0af', toneMapped: false, side: THREE.DoubleSide })); road.userData.street = true; r.bases.add(road); }
+    };
     for (const state of r.geographies) {
       const members = props.bases.filter(b => b.uf === state.uf); if (!members.length) continue;
-      const lots = baseLots(state, members.length), streets = new Set<string>();
-      members.forEach((base, i) => {
-        const lot = lots[i], size = Math.min(lot.size, 2.3), halfStep = lot.spacing / 2;
-        for (const x of [lot.x - halfStep, lot.x + halfStep]) streets.add(`z:${x}`); for (const z of [lot.z - halfStep, lot.z + halfStep]) streets.add(`x:${z}`);
-        const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, size, team: base.team, models: [], kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
-        const camp = createBaseCamp(base.team, size); group.add(camp); group.userData.decorations = [camp];
-        const marker = createTeamBadge(base.team); marker.scale.setScalar(1.8); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
-        const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.05, .08), true); name.position.set(0, size * .18, size * .86); name.visible = false; group.add(name); group.userData.name = name;
-        r.bases.add(group); r.groups.set(base.id, group);
-      });
-      for (const street of streets) { const [axis, raw] = street.split(':'); for (const [a, b] of clippedStreet(state, axis as 'x' | 'z', Number(raw))) { const length = Math.hypot(b[0] - a[0], b[1] - a[1]), width = Math.min(lots[0].size * .13, .11); const road = new THREE.Mesh(new THREE.BoxGeometry(axis === 'x' ? length : width, .012, axis === 'x' ? width : length), new THREE.MeshStandardMaterial({ color: '#d6d0af', roughness: 1 })); road.position.set((a[0] + b[0]) / 2, .666, (a[1] + b[1]) / 2); road.receiveShadow = true; road.userData.street = true; r.bases.add(road); } }
+      if (state.uf === 'BA') {
+        const byCity = new Map<string, Base[]>();
+        for (const base of members) if (base.municipalityId) { const residents = byCity.get(base.municipalityId) || []; residents.push(base); byCity.set(base.municipalityId, residents); }
+        if (r.municipalityById.size) {
+          for (const [cityId, residents] of byCity) {
+            const city = r.municipalityById.get(cityId); if (!city) continue;
+            const shape = projectedState({ id: city.id, uf: 'BA', name: city.name, polygons: city.polygons }), lots = baseLots(shape, residents.length);
+            residents.forEach((base, i) => addBase(base, lots[i])); addStreets(shape, lots);
+          }
+          const unassigned = members.filter(base => !base.municipalityId);
+          if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); addStreets(state, lots); }
+        } else {
+          const byCityBases = members.filter(base => base.municipalityId), unassigned = members.filter(base => !base.municipalityId);
+          for (const base of byCityBases) { const item = props.municipalityIndex.find(city => city.id === base.municipalityId); if (item) { const [x, z] = project(item.label[0], item.label[1]); addBase(base, { x, z, size: .32, spacing: .5 }); } }
+          if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
+        }
+      } else {
+        const lots = baseLots(state, members.length); members.forEach((base, i) => addBase(base, lots[i])); addStreets(state, lots);
+      }
     }
     r.draw(true);
-  }, [props.bases, ready]);
+  }, [props.bases, props.municipalityIndex, ready, municipalityRevision]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; if (props.selectedUF === 'BA') void r.ensureMunicipalities(); }, [props.selectedUF, ready]);
+  useEffect(() => { const r = runtime.current; if (r && ready && props.selectedUF === 'BA' && props.selectedMunicipality && r.municipalityById.size) r.focus(props.selected, 'BA', props.selectedMunicipality); }, [props.selected, props.selectedUF, props.selectedMunicipality, municipalityRevision, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; r.highlightMunicipality(props.selectedMunicipality); }, [props.selectedMunicipality, ready]);
   useEffect(() => { const r = runtime.current; if (r && ready && !props.suspended) r.wake(); }, [props.battle, props.selected, props.suspended, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; for (const [uf, material] of r.terrain) material.color.set(COLORS[props.controls[uf] || 'neutral']); r.draw(); }, [props.controls, ready]);
-  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); r.draw(true); } else if (command.action === 'focus-city') { r.focus(undefined, command.uf, command.cityId); void r.ensureMunicipalities(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); r.invalidateLayout(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); r.invalidateLayout(); } r.draw(); }, [props.command, ready]);
+  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); r.draw(true); } else if (command.action === 'focus-city') { r.focus(command.baseId, command.uf, command.cityId); void r.ensureMunicipalities(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); r.invalidateLayout(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); r.invalidateLayout(); } r.draw(); }, [props.command, ready]);
   return <div ref={host} className="war-world">{!ready && !failure && <div className="war-loading"><span className="loader" /><strong>Preparando o campo…</strong><small>27 territórios. Um Brasil em miniatura.</small></div>}{failure && <div className="war-loading"><strong>O cenário 3D não abriu</strong><p>{failure}</p><p>Confira se o navegador tem WebGL 2 ativado.</p></div>}</div>;
 }

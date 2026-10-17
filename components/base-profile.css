@@ -90,3 +90,5 @@
   .profile-mission{border-radius:20px}
   .profile-mission h4{font-weight:1000}
 }
+
+.profile-city-marshal{border:2px solid var(--ink);border-radius:16px;background:#f7e5ab;padding:13px;margin:0 0 21px;box-shadow:0 3px 0 #253b4418}.profile-city-marshal>header{display:flex;align-items:center;gap:8px;color:#8a6a16}.profile-city-marshal>header>div{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}.profile-city-marshal>header b{font-family:Nunito,sans-serif;font-size:12px;font-weight:1000;letter-spacing:.4px}.profile-city-marshal>header small{font-size:9px;font-weight:700;color:#86764d}.profile-city-marshal>header button{display:flex;align-items:center;gap:3px;background:none;font-size:9px;font-weight:800;color:#695822}.profile-city-marshal>p{font-size:11px;line-height:1.55;margin:10px 0 5px}.profile-city-marshal>p b{font-weight:900}.profile-city-marshal .city-rule-note{display:block;color:#938355;font-size:8px;line-height:1.5;margin-top:8px}.profile-city-marshal .city-link-action{margin-top:8px;padding:8px 11px;border:1.5px solid var(--ink);border-radius:20px;background:#f4d56f;font-size:9px;font-weight:800;box-shadow:0 2px 0 #253b4422}
