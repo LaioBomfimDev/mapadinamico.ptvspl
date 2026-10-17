@@ -12,7 +12,7 @@ export default function MapLoader({ status }: { status: MapLoadingStatus }) {
   if (status.error || dismissed) return null;
   return <div className={`map-boot ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="map-boot-title" aria-busy={!status.ready}>
     <div className="map-boot-card">
-      <span className="map-boot-kicker">BRASIL EM BATALHA</span>
+      <span className="map-boot-kicker">VOCÊ É 13 OU 22?</span>
       <div className="map-boot-scene" aria-hidden="true"><i /><span className="boot-base red"><Shield size={31} /></span><span className="boot-center"><Flag size={35} /></span><span className="boot-base blue"><Swords size={31} /></span><b /><b /><b /></div>
       <h2 id="map-boot-title">Um Brasil.<br /><em>Seu próximo território.</em></h2>
       <p>O campo está sendo preparado para você.</p>

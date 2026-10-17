@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brasil em Batalha · Projeto 2",
-  description: "Explore o Brasil em miniatura, monte uma base e acompanhe a batalha entre dois exércitos. Protótipo do Projeto 2.",
+  title: "Você é 13 ou 22?",
+  description: "Escolha 13 ou 22, monte sua base no Brasil em miniatura e acompanhe a batalha ao vivo. Protótipo do Projeto 2.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
