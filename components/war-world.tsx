@@ -5,11 +5,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createUnit, animateUnit } from '../lib/war/unit-models';
 import { WarEffects } from '../lib/war/vfx';
 import { ToyDebris } from '../lib/war/destruction';
-import { createTeamBadge, faceTeamBadge } from '../lib/war/team-badges';
+import { faceTeamBadge } from '../lib/war/team-badges';
 import { createBaseCamp, CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp';
-import { baseLots, clippedStreet, inRing, projectedState, project, stateBounds, type MunicipalityIndexItem, type Point, type StateGeometry } from '../lib/war/geography';
-import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind } from '../lib/war/game';
+import { baseLots, inRing, projectedState, project, stateBounds, type MunicipalityIndexItem, type Point, type StateGeometry } from '../lib/war/geography';
+import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind, type Team } from '../lib/war/game';
 import { cityMarechals } from '../lib/war/engagement';
+import { mapRankingLeaders, fitMapLabels } from '../lib/war/map-labels';
+import { earnedPoints } from '../lib/war/points';
 
 export type CameraCommand = { action: 'in' | 'out' | 'reset' | 'focus' | 'focus-city' | 'rotate' | 'rebuild'; serial: number; baseId?: string; uf?: string; cityId?: string };
 type MunicipalityGeometry = { id: string; name: string; polygons: Point[][][]; label: Point; labelSize: number };
@@ -25,12 +27,25 @@ function disposeTree(object: THREE.Object3D) {
   object.traverse(child => { const mesh = child as THREE.Mesh; if (mesh.geometry) geometries.add(mesh.geometry); if (mesh.material) for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) { materials.add(mat); const map = (mat as THREE.MeshStandardMaterial).map; if (map) textures.add(map); } });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
 }
-function plaque(text: string, color: string, width: number, paper = false) {
-  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!; const font = `900 ${paper ? 34 : 47}px Arial`; ctx.font = font; canvas.width = Math.max(paper ? 160 : 90, Math.ceil(ctx.measureText(text).width + (paper ? 44 : 28))); canvas.height = 96;
-  if (paper) { ctx.fillStyle = '#fffdf4'; ctx.beginPath(); ctx.roundRect(3, 3, canvas.width - 6, 90, 28); ctx.fill(); ctx.strokeStyle = '#263d43'; ctx.lineWidth = 5; ctx.stroke(); }
-  ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = paper ? 0 : 8; ctx.strokeStyle = '#263d43'; if (!paper) ctx.strokeText(text, canvas.width / 2, 48, canvas.width - 24); ctx.fillStyle = color; ctx.fillText(text, canvas.width / 2, 48, canvas.width - 24);
+function mapMarker(team: Team) {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 96; const c = canvas.getContext('2d')!;
+  c.fillStyle = '#fff9e3'; c.strokeStyle = '#253b44'; c.lineWidth = 7; c.beginPath(); c.arc(48, 48, 40, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.beginPath(); c.lineWidth = 3;
+  if (team === 'red') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 12 : 28; if (!i) c.moveTo(48 + Math.cos(a)*r,48 + Math.sin(a)*r); else c.lineTo(48 + Math.cos(a)*r,48 + Math.sin(a)*r); } c.fillStyle = '#f5ca53'; }
+  else { [[20,31],[71,31],[75,37],[75,44],[49,44],[52,64],[41,69],[34,46],[22,46]].forEach(([x,y],i) => i ? c.lineTo(x,y) : c.moveTo(x,y)); c.fillStyle = '#599bd8'; }
+  c.closePath(); c.fill(); c.stroke(); const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent:true, depthTest:false, toneMapped:false })); marker.scale.setScalar(1.05); marker.userData.mapMarker = true; return marker;
+}
+function plaque(text: string, color: string, width: number, subtitle?: string) {
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!;
+  ctx.font = '900 47px Arial'; const main = ctx.measureText(text).width;
+  ctx.font = '900 32px Arial'; const sub = subtitle ? ctx.measureText(subtitle).width : 0;
+  canvas.width = Math.max(90, Math.ceil(Math.max(main, sub) + 24)); canvas.height = subtitle ? 126 : 90;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#17222b';
+  const line = (value: string, y: number, font: number, fill: string) => { ctx.font = `900 ${font}px Arial`; ctx.lineWidth = font === 47 ? 9 : 7; ctx.strokeText(value, canvas.width / 2, y); ctx.fillStyle = fill; ctx.fillText(value, canvas.width / 2, y); };
+  line(text, subtitle ? 39 : 45, 47, color); if (subtitle) line(subtitle, 94, 32, '#ffe277');
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true })); sprite.scale.set(width, width * 96 / canvas.width, 1); sprite.renderOrder = 8; return sprite;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true, toneMapped: false })); sprite.scale.set(width, width * canvas.height / canvas.width, 1); sprite.renderOrder = 8; sprite.userData.labelStyle = 'outlined-text'; return sprite;
 }
 type Runtime = { scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; municipalityBorders: THREE.Group; municipalityLabels: THREE.Group; municipalityById: Map<string, MunicipalityGeometry>; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; debris: ToyDebris; casualties: Set<string>; draw: (refreshShadows?: boolean) => void; wake: () => void; ensureMunicipalities: () => Promise<void>; highlightMunicipality: (cityId?: string) => void; invalidateLayout: () => void; focus: (baseId?: string, uf?: string, cityId?: string) => void; reset: () => void };
 
@@ -41,7 +56,7 @@ export default function WarWorld(props: Props) {
   useEffect(() => {
     if (!host.current) return;
     setReady(false);
-    const container = host.current, abort = new AbortController(); let cancelled = false, raf = 0, observer: ResizeObserver | undefined, owned: Runtime | undefined, cleanup = () => {}, wake = () => {}, shadowDirty = true, layoutDirty = true, municipalityPromise: Promise<void> | null = null, selectedHighlight: THREE.Group | null = null, orderedCityId: string | undefined, orderedCityLabels: THREE.Sprite[] = [];
+    const container = host.current, abort = new AbortController(); let cancelled = false, raf = 0, frameCount = 0, observer: ResizeObserver | undefined, owned: Runtime | undefined, cleanup = () => {}, wake = () => {}, shadowDirty = true, layoutDirty = true, municipalityPromise: Promise<void> | null = null, selectedHighlight: THREE.Group | null = null;
     const boot = async () => {
       try {
         const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -50,15 +65,14 @@ export default function WarWorld(props: Props) {
         renderer.domElement.setAttribute('aria-label', 'Brasil em miniatura. Arraste para mover, amplie para explorar as bases e clique em um estado.'); renderer.domElement.dataset.renderer = 'war-three-webgl'; container.appendChild(renderer.domElement);
         const scene = new THREE.Scene(); scene.background = new THREE.Color('#acd9e8'); scene.fog = new THREE.Fog('#acd9e8', 150, 240);
         const camera = new THREE.OrthographicCamera(-45, 45, 38, -38, .1, 400); camera.position.set(0, 78, 47);
-        const orbit = new OrbitControls(camera, renderer.domElement); orbit.enableDamping = true; orbit.dampingFactor = .1; orbit.minZoom = .6; orbit.maxZoom = 110; orbit.minPolarAngle = .18; orbit.maxPolarAngle = 1.13; orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }; orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+        const orbit = new OrbitControls(camera, renderer.domElement); orbit.enableDamping = true; orbit.dampingFactor = .1; orbit.minZoom = .6; orbit.maxZoom = 1800; orbit.minPolarAngle = .18; orbit.maxPolarAngle = 1.13; orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }; orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
         orbit.target.set(0, 0, 0); orbit.update();
         scene.add(new THREE.HemisphereLight('#fff4dc', '#7b9e79', 1.6));
         const sun = new THREE.DirectionalLight('#fff6db', 2.1); sun.position.set(-30, 70, 25); sun.castShadow = true; sun.shadow.mapSize.set(512, 512); Object.assign(sun.shadow.camera, { left: -38, right: 38, top: 38, bottom: -38 }); sun.shadow.normalBias = .08; scene.add(sun);
         const ocean = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: '#acd9e8', toneMapped: false })); ocean.rotation.x = -Math.PI / 2; ocean.position.y = -.3; scene.add(ocean);
-        const grid = new THREE.GridHelper(300, 100, '#d7eef2', '#d7eef2'); grid.position.y = -.27; (grid.material as THREE.Material).transparent = true; (grid.material as THREE.Material).opacity = .28; scene.add(grid);
         const bases = new THREE.Group(), labels = new THREE.Group(), municipalityBorders = new THREE.Group(), municipalityLabels = new THREE.Group(); municipalityBorders.visible = false; municipalityLabels.visible = false; scene.add(bases, labels, municipalityBorders, municipalityLabels);
         const terrain = new Map<string, THREE.MeshStandardMaterial>(), effects = new WarEffects(scene), debris = new ToyDebris(scene), casualties = new Set<string>();
-        const renderFrame = () => { if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; } renderer.render(scene, camera); };
+        const renderFrame = () => { if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; } renderer.render(scene, camera); renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls); renderer.domElement.dataset.renderCount = String(++frameCount); renderer.domElement.dataset.roadBatches = String(bases.children.filter(o => o.userData.street).length); renderer.domElement.dataset.cityLabels = String(municipalityLabels.visible ? municipalityLabels.children.filter(o => o.visible).length : 0); renderer.domElement.dataset.cityLabelCandidates = String(municipalityLabels.children.length); renderer.domElement.dataset.labelStyle = 'outlined-text'; renderer.domElement.dataset.mapZoom = camera.zoom.toFixed(2); renderer.domElement.dataset.wreckCount = String(debris.count); };
         const draw = (refreshShadows = false) => { if (refreshShadows) shadowDirty = true; if (latest.current.suspended) return; renderFrame(); wake(); };
         const reset = () => { const z = container.clientWidth < 680 ? -16 : 0; camera.zoom = 1; orbit.target.set(0, 0, z); camera.position.set(0, 78, 47 + z); camera.updateProjectionMatrix(); orbit.update(); layoutDirty = true; };
         owned = { scene, renderer, camera, orbit, bases, labels, municipalityBorders, municipalityLabels, municipalityById: new Map(), terrain, effects, debris, casualties, positions: new Map(), groups: new Map(), geographies: [], draw, wake: () => wake(), ensureMunicipalities: async () => {}, highlightMunicipality: () => {}, invalidateLayout: () => { layoutDirty = true; }, reset, focus: (id, uf, cityId) => {
@@ -68,9 +82,9 @@ export default function WarWorld(props: Props) {
           const cityIndex = cityId ? latest.current.municipalityIndex.find(item => item.id === cityId) : undefined;
           const cityPoint = cityIndex ? project(cityIndex.label[0], cityIndex.label[1]) : undefined;
           let p = (id ? r.positions.get(id)?.clone() : undefined) ?? cityLabel?.position.clone() ?? (cityPoint ? new THREE.Vector3(cityPoint[0], .84, cityPoint[1]) : undefined);
-          if (cityId) { const cityGeometry = r.municipalityById.get(cityId), extent = cityGeometry ? municipalityExtent(cityGeometry) : undefined, width = Math.max(extent?.width || 0, extent?.height || 0); camera.zoom = extent ? THREE.MathUtils.clamp(20 / Math.max(width, .18), 12, 100) : Math.min(42, Math.max(12, 22 / Math.max(cityLabel?.scale.x ?? 0, cityIndex?.labelSize || 0, .18))); r.highlightMunicipality(cityId); }
+          if (cityId && !id) { const cityGeometry = r.municipalityById.get(cityId), extent = cityGeometry ? municipalityExtent(cityGeometry) : undefined, width = Math.max(extent?.width || 0, extent?.height || 0); camera.zoom = extent ? THREE.MathUtils.clamp(20 / Math.max(width, .18), 12, 100) : Math.min(42, Math.max(12, 22 / Math.max(cityLabel?.scale.x ?? 0, cityIndex?.labelSize || 0, .18))); r.highlightMunicipality(cityId); }
           if (!p && state) { const b = stateBounds(state); p = new THREE.Vector3((b.minX + b.maxX) / 2, .7, (b.minZ + b.maxZ) / 2); camera.zoom = Math.min(24, 35 / Math.max(b.maxX - b.minX, b.maxZ - b.minZ)); }
-          else if (p && !cityId) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(100, 22 / size); }
+          else if (p && id) { const size = r.groups.get(id!)?.userData.size ?? 1; camera.zoom = Math.min(1800, 22 / size); }
           if (!p) return;
           if (id && container.clientWidth < 680) p.z += 44 / camera.zoom;
           else if (id) p.x -= (camera.right - camera.left) / camera.zoom * Math.min(.25, 220 / container.clientWidth);
@@ -94,7 +108,7 @@ export default function WarWorld(props: Props) {
           const surface = new THREE.MeshStandardMaterial({ color: COLORS.neutral, roughness: 1, flatShading: true }), edge = new THREE.MeshStandardMaterial({ color: '#c6b887', roughness: 1 });
           const mesh = new THREE.Mesh(geometry, [surface, edge]); mesh.receiveShadow = true; mesh.userData.uf = state.uf; scene.add(mesh); terrain.set(state.uf, surface);
           const location = STATES.find(s => s.uf === state.uf)!; const p = project(location.lng, location.lat);
-          const text = plaque(state.uf, '#fffdf0', ['DF', 'SE', 'AL', 'ES', 'RJ', 'RN', 'PB'].includes(state.uf) ? 2.0 : 2.9); text.position.set(p[0], .85, p[1]); text.userData.uf = state.uf; labels.add(text);
+          const text = plaque(state.uf, '#fffdf0', ['DF', 'SE', 'AL', 'ES', 'RJ', 'RN', 'PB'].includes(state.uf) ? 2.0 : 2.9); text.position.set(p[0], .85, p[1]); text.userData.uf = state.uf; text.userData.aspect = text.scale.y / text.scale.x; labels.add(text);
         }
         owned.ensureMunicipalities = () => {
           if (municipalityPromise) return municipalityPromise;
@@ -114,8 +128,6 @@ export default function WarWorld(props: Props) {
                   linePositions.push(a[0], .668, a[1], b[0], .668, b[1]);
                 }
               }
-              const [x, z] = project(city.label[0], city.label[1]), text = plaque(city.name, '#334b43', .4, true);
-              text.position.set(x, .84, z); text.userData.cityId = city.id; text.userData.cityName = city.name; text.userData.aspect = text.scale.y / text.scale.x; owned!.municipalityLabels.add(text);
             }
             const boundaryGeometry = new THREE.BufferGeometry(); boundaryGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
             owned!.municipalityBorders.add(new THREE.LineSegments(boundaryGeometry, new THREE.LineBasicMaterial({ color: '#71835a', transparent: true, opacity: .82, toneMapped: false })));
@@ -153,7 +165,7 @@ export default function WarWorld(props: Props) {
         const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(.16, .55, 5), new THREE.MeshStandardMaterial({ color: '#6a9862', roughness: 1 }), treePositions.length), matrix = new THREE.Matrix4(); treePositions.forEach((p, i) => { matrix.makeTranslation(p.x, p.y, p.z); trees.setMatrixAt(i, matrix); }); scene.add(trees);
         const ray = new THREE.Raycaster(), start = new THREE.Vector2();
         const down = (event: PointerEvent) => start.set(event.clientX, event.clientY);
-        const up = (event: PointerEvent) => { if (event.button !== 0 || Math.abs(start.x - event.clientX) + Math.abs(start.y - event.clientY) > 6) return; const rect = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera); for (const hit of ray.intersectObject(bases, true)) { let node: THREE.Object3D | null = hit.object; while (node) { if (node.userData.baseId) { latest.current.onBase(node.userData.baseId); return; } node = node.parent; } } if (latest.current.selectedUF === 'BA' && owned?.municipalityById.size) { const ground = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -.668), new THREE.Vector3()); if (ground) { const point: Point = [ground.x / 1.5 - 54, -ground.z / 1.5 - 14]; for (const city of owned.municipalityById.values()) if (city.polygons.some(polygon => inRing(point, polygon[0]) && !polygon.slice(1).some(hole => inRing(point, hole)))) { latest.current.onMunicipality(city.id); return; } } } for (const hit of ray.intersectObjects(scene.children, true)) if (hit.object.userData.uf) { latest.current.onState(hit.object.userData.uf); return; } };
+        const up = (event: PointerEvent) => { if (event.button !== 0 || Math.abs(start.x - event.clientX) + Math.abs(start.y - event.clientY) > 6) return; const rect = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera); if (municipalityLabels.visible) for (const hit of ray.intersectObjects(municipalityLabels.children.filter(label => label.visible), false)) { if (hit.object.userData.baseId) { latest.current.onBase(hit.object.userData.baseId); return; } if (hit.object.userData.cityId) { latest.current.onMunicipality(hit.object.userData.cityId); return; } } for (const hit of ray.intersectObject(bases, true)) { let node: THREE.Object3D | null = hit.object; while (node) { if (node.userData.baseId) { latest.current.onBase(node.userData.baseId); return; } node = node.parent; } } if (latest.current.selectedUF === 'BA' && owned?.municipalityById.size) { const ground = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -.668), new THREE.Vector3()); if (ground) { const point: Point = [ground.x / 1.5 - 54, -ground.z / 1.5 - 14]; for (const city of owned.municipalityById.values()) if (city.polygons.some(polygon => inRing(point, polygon[0]) && !polygon.slice(1).some(hole => inRing(point, hole)))) { latest.current.onMunicipality(city.id); return; } } } for (const hit of ray.intersectObjects(scene.children, true)) if (hit.object.userData.uf) { latest.current.onState(hit.object.userData.uf); return; } };
         const onOrbitChange = () => wake(), onVisibilityChange = () => { if (!document.hidden) wake(); };
         renderer.domElement.addEventListener('pointerdown', down); renderer.domElement.addEventListener('pointerup', up); orbit.addEventListener('change', onOrbitChange); document.addEventListener('visibilitychange', onVisibilityChange);
         cleanup = () => { renderer.domElement.removeEventListener('pointerdown', down); renderer.domElement.removeEventListener('pointerup', up); orbit.removeEventListener('change', onOrbitChange); document.removeEventListener('visibilitychange', onVisibilityChange); };
@@ -170,38 +182,39 @@ export default function WarWorld(props: Props) {
           if (municipalityScope !== lastMunicipalityScope) { lastMunicipalityScope = municipalityScope; layoutDirty = true; }
           if ((current.selected || '') !== lastSelectedBase) { lastSelectedBase = current.selected || ''; dirty = true; }
           camera.updateMatrixWorld(); frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-          const visible = (object: THREE.Object3D, value: boolean) => { if (object.visible !== value) { object.visible = value; dirty = true; } };
+          const visible = (object: THREE.Object3D, value: boolean) => { if (object.visible !== value) { object.visible = value; dirty = true; if (!(object instanceof THREE.Sprite)) shadowDirty = true; } };
+          if (layoutDirty) for (const child of labels.children) { const label = child as THREE.Sprite, width = 29 * (camera.right - camera.left) / (camera.zoom * container.clientWidth); label.scale.set(width, width * Number(label.userData.aspect), 1); }
           const showLabels = camera.zoom < 3.8; if (labels.visible !== showLabels) { labels.visible = showLabels; dirty = true; }
           const showMunicipalities = current.selectedUF === 'BA';
           visible(municipalityBorders, showMunicipalities && camera.zoom > 1.4);
-          visible(municipalityLabels, showMunicipalities && camera.zoom >= 3.2);
+          visible(municipalityLabels, camera.zoom >= 2.2);
           if (municipalityLabels.visible && layoutDirty) {
-            const rect = renderer.domElement.getBoundingClientRect(), occupied: { x: number; y: number; w: number; h: number }[] = [];
-            if (orderedCityId !== current.selectedMunicipality || orderedCityLabels.length !== municipalityLabels.children.length) { orderedCityId = current.selectedMunicipality; orderedCityLabels = [...municipalityLabels.children as THREE.Sprite[]].sort((a, b) => Number(b.userData.cityId === orderedCityId) - Number(a.userData.cityId === orderedCityId)); }
-            for (const label of orderedCityLabels) {
-              const targetWidth = Math.min(130, Math.max(78, String(label.userData.cityName).length * 6.5)), worldWidth = targetWidth * (camera.right - camera.left) / (camera.zoom * rect.width);
+            const rect = renderer.domElement.getBoundingClientRect(), candidates = [];
+            for (const child of municipalityLabels.children) {
+              const label = child as THREE.Sprite, selected = label.userData.cityId === current.selectedMunicipality;
+              const targetWidth = Math.min(190, Math.max(95, String(label.userData.cityName).length * 7.5));
+              const worldWidth = targetWidth * (camera.right - camera.left) / (camera.zoom * rect.width);
               label.scale.set(worldWidth, worldWidth * Number(label.userData.aspect), 1);
-              const point = label.position.clone().project(camera), x = (point.x + 1) * rect.width / 2, y = (1 - point.y) * rect.height / 2;
-              const w = label.scale.x * camera.zoom * rect.width / (camera.right - camera.left), h = label.scale.y * camera.zoom * rect.height / (camera.top - camera.bottom);
-              const inView = point.z >= -1 && point.z <= 1 && x + w / 2 > 0 && x - w / 2 < rect.width && y + h / 2 > 0 && y - h / 2 < rect.height;
-              const overlaps = occupied.some(box => Math.abs(box.x - x) < (box.w + w) * .54 && Math.abs(box.y - y) < (box.h + h) * .6);
-              const show = inView && (label.userData.cityId === current.selectedMunicipality || !overlaps);
-              if (label.visible !== show) { label.visible = show; dirty = true; }
-              if (show) occupied.push({ x, y, w, h });
+              const point = label.position.clone().project(camera);
+              if (point.z < -1 || point.z > 1) continue;
+              candidates.push({ id: label.userData.cityId as string, x: (point.x + 1) * rect.width / 2, y: (1 - point.y) * rect.height / 2, w: targetWidth, h: label.scale.y * camera.zoom * rect.height / (camera.top - camera.bottom), priority: Number(label.userData.points || 0), selected });
             }
+            const accepted = fitMapLabels(candidates, rect.width, rect.height, rect.width < 680 ? 8 : camera.zoom < 8 ? 14 : 22);
+            for (const label of municipalityLabels.children) visible(label, accepted.has(label.userData.cityId));
             layoutDirty = false;
           }
           if (trees.visible !== (camera.zoom < 12)) { trees.visible = camera.zoom < 12; dirty = true; }
           for (const [id, group] of owned!.groups) {
             bounds.center.copy(group.position); bounds.radius = group.userData.size * 2; visible(group, frustum.intersectsSphere(bounds)); if (!group.visible) continue;
-            const detail = camera.zoom > 2.5 || current.selected === id;
+            const projectedWidth = group.userData.size * 1.28 * camera.zoom * container.clientWidth / (camera.right - camera.left);
+            const detail = camera.zoom >= 8 && projectedWidth >= 34 || current.selected === id;
             if (detail && !group.userData.models.length) { ensureModels(group); dirty = true; }
             for (const decoration of group.userData.decorations as THREE.Object3D[]) visible(decoration, detail);
             group.userData.models.forEach((unit: THREE.Group) => { visible(unit, detail && !casualties.has(unit.userData.visualKey)); if (unit.visible) { animateUnit(unit, time / 1000, !!activeBattle); faceTeamBadge(unit, camera); } });
-            visible(group.userData.marker, !detail); faceTeamBadge(group.userData.marker, camera); visible(group.userData.name, current.selected === id || camera.zoom > 9);
-            if (group.userData.marechal) visible(group.userData.marechal, current.selected === id || current.selectedMunicipality === group.userData.municipalityId || camera.zoom > 9);
+            const markerWidth = (camera.zoom < 2 ? 14 : 18) * (camera.right - camera.left) / (camera.zoom * container.clientWidth); group.userData.marker.scale.setScalar(markerWidth);
+            const name = group.userData.name as THREE.Sprite, nameWidth = Math.min(group.userData.size * 1.05, (current.selected === id ? 150 : 115) * (camera.right - camera.left) / (camera.zoom * container.clientWidth)); name.scale.set(nameWidth, nameWidth * Number(name.userData.aspect), 1);
+            visible(group.userData.marker, !detail); visible(name, current.selected === id || group.userData.rankingLeader && !group.userData.municipalityId && camera.zoom > 3.8);
           }
-          for (const child of bases.children) if (child.userData.street) visible(child, camera.zoom > 2.5);
           if (activeBattle) {
             activeBattle.events.forEach((event, index) => { if (event.at <= current.elapsed && !fired.current.has(index)) { fired.current.add(index); impacts.push({ source: event.source, target: event.target, at: event.at, index }); } });
           }
@@ -229,22 +242,15 @@ export default function WarWorld(props: Props) {
   useEffect(() => {
     const r = runtime.current; if (!r || !ready) return;
     for (const child of [...r.bases.children]) { r.bases.remove(child); disposeTree(child); } r.positions.clear(); r.groups.clear();
-    const marechals = cityMarechals(props.bases);
+    const marechals = cityMarechals(props.bases), leaders = mapRankingLeaders(props.bases);
     const addBase = (base: Base, lot: { x: number; z: number; size: number; spacing: number }) => {
       const size = Math.min(lot.size, 2.3);
-      const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, municipalityId: base.municipalityId, size, team: base.team, models: [], kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
+      const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, municipalityId: base.municipalityId, size, team: base.team, models: [], rankingLeader: leaders.states.get(base.uf)?.id === base.id, kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
       const camp = createBaseCamp(base.team, size); group.add(camp); group.userData.decorations = [camp];
-      const marker = createTeamBadge(base.team); marker.scale.setScalar(1.8); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
-      if (base.municipalityId && marechals.get(base.municipalityId)?.id === base.id) { const marshal = plaque('MARECHAL', '#9a7415', Math.max(size * 1.7, .05), true); marshal.position.set(0, size * 1.35, size * .8); marshal.visible = false; group.add(marshal); group.userData.marechal = marshal; }
-      const name = plaque(`@${base.username}`, '#263d43', Math.max(size * 1.05, .08), true); name.position.set(0, size * .18, size * .86); name.visible = false; group.add(name); group.userData.name = name;
+      const marker = mapMarker(base.team); marker.position.y = Math.max(.5, size * .8); group.add(marker); group.userData.marker = marker;
+      const isMarechal = !!base.municipalityId && marechals.get(base.municipalityId)?.id === base.id;
+      const name = plaque(`${isMarechal ? '♛ ' : ''}@${base.username}`, isMarechal || leaders.states.get(base.uf)?.id === base.id ? '#ffe277' : '#fffdf4', Math.max(size * 1.05, .08)); name.userData.aspect = name.scale.y / name.scale.x; name.position.set(0, size * .18, size * .86); name.visible = false; group.add(name); group.userData.name = name;
       r.bases.add(group); r.groups.set(base.id, group);
-    };
-    const addStreets = (shape: StateGeometry, lots: { x: number; z: number; size: number; spacing: number }[]) => {
-      if (!lots.length) return;
-      const streets = new Set<string>(); for (const lot of lots) { const halfStep = lot.spacing / 2; for (const x of [lot.x - halfStep, lot.x + halfStep]) streets.add(`z:${x}`); for (const z of [lot.z - halfStep, lot.z + halfStep]) streets.add(`x:${z}`); }
-      const vertices: number[] = [], width = Math.min(lots[0].size * .13, .11);
-      for (const street of streets) { const [axis, raw] = street.split(':'); for (const [a, b] of clippedStreet(shape, axis as 'x' | 'z', Number(raw))) { const dx = b[0] - a[0], dz = b[1] - a[1], length = Math.hypot(dx, dz); if (length < .0001) continue; const px = -dz / length * width / 2, pz = dx / length * width / 2; vertices.push(a[0] + px, .666, a[1] + pz, b[0] + px, .666, b[1] + pz, b[0] - px, .666, b[1] - pz, a[0] + px, .666, a[1] + pz, b[0] - px, .666, b[1] - pz, a[0] - px, .666, a[1] - pz); } }
-      if (vertices.length) { const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); const road = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: '#d6d0af', toneMapped: false, side: THREE.DoubleSide })); road.userData.street = true; r.bases.add(road); }
     };
     for (const state of r.geographies) {
       const members = props.bases.filter(b => b.uf === state.uf); if (!members.length) continue;
@@ -255,26 +261,39 @@ export default function WarWorld(props: Props) {
           for (const [cityId, residents] of byCity) {
             const city = r.municipalityById.get(cityId); if (!city) continue;
             const shape = projectedState({ id: city.id, uf: 'BA', name: city.name, polygons: city.polygons }), lots = baseLots(shape, residents.length);
-            residents.forEach((base, i) => addBase(base, lots[i])); addStreets(shape, lots);
+            residents.forEach((base, i) => addBase(base, lots[i]));
           }
           const unassigned = members.filter(base => !base.municipalityId);
-          if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); addStreets(state, lots); }
+          if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
         } else {
           const byCityBases = members.filter(base => base.municipalityId), unassigned = members.filter(base => !base.municipalityId);
           for (const base of byCityBases) { const item = props.municipalityIndex.find(city => city.id === base.municipalityId); if (item) { const [x, z] = project(item.label[0], item.label[1]); addBase(base, { x, z, size: .32, spacing: .5 }); } }
           if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
         }
       } else {
-        const lots = baseLots(state, members.length); members.forEach((base, i) => addBase(base, lots[i])); addStreets(state, lots);
+        const lots = baseLots(state, members.length); members.forEach((base, i) => addBase(base, lots[i]));
       }
     }
     r.draw(true);
   }, [props.bases, props.municipalityIndex, ready, municipalityRevision]);
+  useEffect(() => {
+    const r = runtime.current; if (!r || !ready) return;
+    for (const child of [...r.municipalityLabels.children]) { r.municipalityLabels.remove(child); disposeTree(child); }
+    const leaders = mapRankingLeaders(props.bases), ids = new Set(leaders.cities.keys()); if (props.selectedMunicipality) ids.add(props.selectedMunicipality);
+    for (const cityId of ids) {
+      const city = props.municipalityIndex.find(item => item.id === cityId); if (!city) continue;
+      const leader = leaders.cities.get(cityId), [x,z] = project(city.label[0], city.label[1]);
+      const label = plaque(city.name, '#fffdf4', .4, leader ? `@${leader.username}` : undefined);
+      label.position.set(x, .87, z); label.userData.cityId = city.id; label.userData.baseId = leader?.id; label.userData.cityName = city.name; label.userData.points = leader ? earnedPoints(leader) : 0; label.userData.aspect = label.scale.y / label.scale.x;
+      r.municipalityLabels.add(label);
+    }
+    r.invalidateLayout(); r.draw();
+  }, [props.bases, props.municipalityIndex, props.selectedMunicipality, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; if (props.selectedUF === 'BA') void r.ensureMunicipalities(); }, [props.selectedUF, ready]);
   useEffect(() => { const r = runtime.current; if (r && ready && props.selectedUF === 'BA' && props.selectedMunicipality && r.municipalityById.size) r.focus(props.selected, 'BA', props.selectedMunicipality); }, [props.selected, props.selectedUF, props.selectedMunicipality, municipalityRevision, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; r.highlightMunicipality(props.selectedMunicipality); }, [props.selectedMunicipality, ready]);
   useEffect(() => { const r = runtime.current; if (r && ready && !props.suspended) r.wake(); }, [props.battle, props.selected, props.suspended, ready]);
   useEffect(() => { const r = runtime.current; if (!r || !ready) return; for (const [uf, material] of r.terrain) material.color.set(COLORS[props.controls[uf] || 'neutral']); r.draw(); }, [props.controls, ready]);
-  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); r.draw(true); } else if (command.action === 'focus-city') { r.focus(command.baseId, command.uf, command.cityId); void r.ensureMunicipalities(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); r.invalidateLayout(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 110); r.camera.updateProjectionMatrix(); r.orbit.update(); r.invalidateLayout(); } r.draw(); }, [props.command, ready]);
+  useEffect(() => { const r = runtime.current, command = props.command; if (!r || !ready || !command) return; if (command.action === 'reset') r.reset(); else if (command.action === 'rebuild') { r.debris.clear(); r.casualties.clear(); r.draw(true); } else if (command.action === 'focus-city') { r.focus(command.baseId, command.uf, command.cityId); void r.ensureMunicipalities(); } else if (command.action === 'focus') r.focus(command.baseId, command.uf); else if (command.action === 'rotate') { const p = r.camera.position.clone().sub(r.orbit.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6); r.camera.position.copy(r.orbit.target).add(p); r.orbit.update(); r.invalidateLayout(); } else { r.camera.zoom = THREE.MathUtils.clamp(r.camera.zoom * (command.action === 'in' ? 1.5 : 1 / 1.5), .6, 1800); r.camera.updateProjectionMatrix(); r.orbit.update(); r.invalidateLayout(); } r.draw(); }, [props.command, ready]);
   return <div ref={host} className="war-world">{!ready && !failure && <div className="war-loading"><span className="loader" /><strong>Preparando o campo…</strong><small>27 territórios. Um Brasil em miniatura.</small></div>}{failure && <div className="war-loading"><strong>O cenário 3D não abriu</strong><p>{failure}</p><p>Confira se o navegador tem WebGL 2 ativado.</p></div>}</div>;
 }

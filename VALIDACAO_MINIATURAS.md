@@ -1,5 +1,7 @@
 # Validação — Projeto 2, miniaturas
 
+**Atualização de 2026-10-17:** mapa sem ruas externas, nomes de líderes em texto com contorno e criação de rótulos sob demanda. Suite atual:49 testes aprovados, zero falhas (`tests/war-*.test.mjs` e `tests/vercel.test.mjs`). Build Next/Vercel final aprovada. Teste de ponta a ponta na UI converteu40pontos fictícios em artilharia, preservando o histórico; clique no líder abriu ficha; produção local e tela estreita conferidas. Relatório atual, decisões e capturas em [MAPA_LIMPO.md](MAPA_LIMPO.md). Resultados anteriores abaixo permanecem como histórico.
+
 2026-10-16. Resultados reais da implementação local, sem campanha, banco compartilhado ou Instagram real.
 
 ## Instalação e build

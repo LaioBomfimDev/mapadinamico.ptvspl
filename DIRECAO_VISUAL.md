@@ -1,5 +1,7 @@
 # Projeto 2 — alinhamento do mapa e da arte
 
+**Decisão mais recente, 2026-10-17:** usuário pediu remover as ruas e os fundos de botão dos nomes. Implementados texto com contorno, cidades/líderes priorizados pelo ranking e marcadores leves por zoom. Todos os municípios continuam pesquisáveis, com exceção visual para a cidade buscada. Esta decisão substitui as propostas anteriores de ruas e de exibir todos os nomes juntos. [Estado atual](MAPA_LIMPO.md).
+
 Registro de 2026-10-16. O usuário pediu alinhar as ideias antes de prosseguir com implementação, pois houve mistura de decisões entre chats. Esta ficha distingue decisões, propostas e código existente.
 
 **Atualização posterior:** usuário escolheu miniaturas e pediu prosseguir com criação e melhorias. Mapa IBGE, ruas, cinco unidades 3D, sprites de explosão e protótipo local foram implementados. Estado atual em [PROTOTIPO_MINIATURAS.md](PROTOTIPO_MINIATURAS.md); as seções de inspeção abaixo registram a situação anterior à implementação. Números da economia, empates e apresentação das fases continuam experimentais.
