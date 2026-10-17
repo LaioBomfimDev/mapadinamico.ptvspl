@@ -10,7 +10,7 @@ import { CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp';
 import { baseLots, inRing, projectedState, project, stateBounds, type MunicipalityIndexItem, type Point, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind, type Team } from '../lib/war/game';
 import { cityMarechals } from '../lib/war/engagement';
-import { mapRankingLeaders, fitMapLabels } from '../lib/war/map-labels';
+import { mapRankingLeaders, fitMapLabels, type LabelCandidate } from '../lib/war/map-labels';
 import { earnedPoints } from '../lib/war/points';
 import { MapModelCache, isMapSharedResource } from '../lib/war/map-model-cache';
 import { approachZoom, labelScreenSize, mapGeometryKey } from '../lib/war/map-performance';
@@ -27,7 +27,7 @@ function municipalityExtent(city: MunicipalityGeometry) {
 }
 function disposeTree(object: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
-  object.traverse(child => { const mesh = child as THREE.Mesh; if (mesh.geometry && !isMapSharedResource(mesh.geometry)) geometries.add(mesh.geometry); if (mesh.material) for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) { if (isMapSharedResource(mat)) continue; materials.add(mat); const map = (mat as THREE.MeshStandardMaterial).map; if (map) textures.add(map); } });
+  object.traverse(child => { for (const variant of [child.userData.fullMap, child.userData.compactMap]) if (variant instanceof THREE.Texture) textures.add(variant); const mesh = child as THREE.Mesh; if (mesh.geometry && !isMapSharedResource(mesh.geometry)) geometries.add(mesh.geometry); if (mesh.material) for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) { if (isMapSharedResource(mat)) continue; materials.add(mat); const map = (mat as THREE.MeshStandardMaterial).map; if (map) textures.add(map); } });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
 }
 function markerMaterial(team: Team) {
@@ -39,15 +39,23 @@ function markerMaterial(team: Team) {
   c.closePath(); c.fill(); c.stroke(); const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshBasicMaterial({ map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false, side:THREE.DoubleSide });
 }
-function plaque(text: string, color: string, width: number, subtitle?: string) {
-  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!;
+let measureContext: CanvasRenderingContext2D | null = null;
+function plaqueSize(text: string, subtitle?: string) {
+  const ctx = measureContext ??= document.createElement('canvas').getContext('2d')!;
   ctx.font = '900 47px Arial'; const main = ctx.measureText(text).width;
   ctx.font = '900 38px Arial'; const sub = subtitle ? ctx.measureText(subtitle).width : 0;
-  canvas.width = Math.max(90, Math.ceil(Math.max(main, sub) + 24)); canvas.height = subtitle ? 126 : 90;
+  return { width: Math.max(90, Math.ceil(Math.max(main, sub) + 24)), height: subtitle ? 126 : 90 };
+}
+function plaqueTexture(text: string, color: string, subtitle?: string) {
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!, size = plaqueSize(text, subtitle);
+  canvas.width = size.width; canvas.height = size.height;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#17222b';
   const line = (value: string, y: number, font: number, fill: string) => { ctx.font = `900 ${font}px Arial`; ctx.lineWidth = font === 47 ? 9 : 7; ctx.strokeText(value, canvas.width / 2, y); ctx.fillStyle = fill; ctx.fillText(value, canvas.width / 2, y); };
   line(text, subtitle ? 39 : 45, 47, color); if (subtitle) line(subtitle, 94, 38, '#ffffff');
-  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; return map;
+}
+function plaque(text: string, color: string, width: number, subtitle?: string) {
+  const map = plaqueTexture(text, color, subtitle), canvas = map.image as HTMLCanvasElement;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true, toneMapped: false })); sprite.scale.set(width, width * canvas.height / canvas.width, 1); sprite.renderOrder = 8; sprite.userData.labelStyle = 'outlined-text'; sprite.userData.textureWidth = canvas.width; sprite.userData.textureHeight = canvas.height; sprite.userData.twoLines = !!subtitle; return sprite;
 }
 type Runtime = { modelCache: MapModelCache; scene: THREE.Scene; renderer: THREE.WebGLRenderer; camera: THREE.OrthographicCamera; orbit: OrbitControls; bases: THREE.Group; labels: THREE.Group; municipalityBorders: THREE.Group; municipalityLabels: THREE.Group; municipalityById: Map<string, MunicipalityGeometry>; terrain: Map<string, THREE.MeshStandardMaterial>; geographies: StateGeometry[]; positions: Map<string, THREE.Vector3>; groups: Map<string, THREE.Group>; effects: WarEffects; debris: ToyDebris; casualties: Set<string>; draw: (refreshShadows?: boolean) => void; wake: () => void; ensureMunicipalities: () => Promise<void>; highlightMunicipality: (cityId?: string) => void; invalidateLayout: () => void; zoomBy: (factor: number) => void; focus: (baseId?: string, uf?: string, cityId?: string) => void; reset: () => void };
@@ -91,7 +99,7 @@ export default function WarWorld(props: Props) {
           if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
           const started = performance.now(); renderer.render(scene, camera); renderTimes.push(performance.now() - started); if (renderTimes.length > 120) renderTimes.shift();
           const data = renderer.domElement.dataset;
-          Object.assign(data, { drawCalls: String(renderer.info.render.calls), renderCount: String(++frameCount), roadBatches: '0', mapMarkers: String([...markerClouds.values()].reduce((n,c) => n+c.count,0)), cityLabels: String(municipalityLabels.visible ? municipalityLabels.children.filter(o => o.visible).length : 0), cityLabelCandidates: String(municipalityLabels.children.length), labelStyle: 'white-outlined-text', mapZoom: camera.zoom.toFixed(2), wreckCount: String(debris.count), geometries: String(renderer.info.memory.geometries), textures: String(renderer.info.memory.textures), residentCamps: String([...owned!.groups.values()].filter(g => g.userData.decorations.length).length), residentUnits: String([...owned!.groups.values()].reduce((n,g) => n + g.userData.models.length, 0)), renderCpuMeanMs: (renderTimes.reduce((n,v) => n+v,0)/renderTimes.length).toFixed(2), renderCpuMaxMs: Math.max(...renderTimes).toFixed(2) });
+          Object.assign(data, { drawCalls: String(renderer.info.render.calls), renderCount: String(++frameCount), roadBatches: '0', mapMarkers: String([...markerClouds.values()].reduce((n,c) => n+c.count,0)), cityLabels: String(municipalityLabels.visible ? municipalityLabels.children.filter(o => o.visible).length : 0), cityLabelCandidates: String(municipalityLabels.children.length), cityLabelNames: municipalityLabels.visible ? municipalityLabels.children.filter(o => o.visible).map(o => `${o.userData.cityName}${(o as THREE.Sprite).material.map === o.userData.compactMap ? '*' : ''}`).join('|') : '', labelStyle: 'white-outlined-text', mapZoom: camera.zoom.toFixed(2), wreckCount: String(debris.count), geometries: String(renderer.info.memory.geometries), textures: String(renderer.info.memory.textures), residentCamps: String([...owned!.groups.values()].filter(g => g.userData.decorations.length).length), residentUnits: String([...owned!.groups.values()].reduce((n,g) => n + g.userData.models.length, 0)), renderCpuMeanMs: (renderTimes.reduce((n,v) => n+v,0)/renderTimes.length).toFixed(2), renderCpuMaxMs: Math.max(...renderTimes).toFixed(2) });
         };
         const draw = (refreshShadows = false) => { layoutDirty = true; if (refreshShadows) shadowDirty = true; if (latest.current.suspended) return; renderFrame(); wake(); };
         const reset = (immediate = false) => { const z = container.clientWidth < 680 ? -16 : 0; desiredZoom = 1; desiredTarget = new THREE.Vector3(0, 0, z); wheelAnchor = null; if (immediate || reducedMotion) { camera.zoom = 1; orbit.target.copy(desiredTarget); camera.position.set(0, 78, 47 + z); desiredTarget = null; } camera.updateProjectionMatrix(); orbit.update(); layoutDirty = true; };
@@ -243,18 +251,24 @@ export default function WarWorld(props: Props) {
           visible(municipalityBorders, showMunicipalities && camera.zoom > 1.4);
           visible(municipalityLabels, camera.zoom >= 2.2);
           if (municipalityLabels.visible && layoutDirty) {
-            const rect = renderer.domElement.getBoundingClientRect(), candidates = [];
+            const rect = renderer.domElement.getBoundingClientRect(), mobile = rect.width < 680, candidates = new Map<string, LabelCandidate>();
             for (const child of municipalityLabels.children) {
-              const label = child as THREE.Sprite, selected = label.userData.cityId === current.selectedMunicipality;
-              const screen = labelScreenSize(label.userData.textureWidth, label.userData.textureHeight, label.userData.twoLines, rect.width < 680), targetWidth = screen.width;
-              const worldWidth = targetWidth * (camera.right - camera.left) / (camera.zoom * rect.width);
-              label.scale.set(worldWidth, worldWidth * Number(label.userData.aspect), 1);
+              const label = child as THREE.Sprite, selected = label.userData.cityId === current.selectedMunicipality, compactSize = label.userData.compactSize as { width: number; height: number } | undefined;
+              const full = labelScreenSize(label.userData.textureWidth, label.userData.textureHeight, label.userData.twoLines, mobile), compact = compactSize && labelScreenSize(compactSize.width, compactSize.height, false, mobile);
               const point = projectedPoint.copy(label.position).project(camera);
               if (point.z < -1 || point.z > 1) continue;
-              candidates.push({ id: label.userData.cityId as string, x: (point.x + 1) * rect.width / 2, y: (1 - point.y) * rect.height / 2, w: targetWidth, h: label.scale.y * camera.zoom * rect.height / (camera.top - camera.bottom), priority: Number(label.userData.points || 0), selected });
+              candidates.set(label.userData.cityId, { id: label.userData.cityId as string, x: (point.x + 1) * rect.width / 2, y: (1 - point.y) * rect.height / 2, w: full.width, h: full.height, compact: compact && { w: compact.width, h: compact.height }, priority: Number(label.userData.points || 0), selected });
             }
-            const accepted = fitMapLabels(candidates, rect.width, rect.height, rect.width < 680 ? 8 : camera.zoom < 8 ? 14 : 22);
-            for (const label of municipalityLabels.children) visible(label, accepted.has(label.userData.cityId));
+            const placements = fitMapLabels([...candidates.values()], rect.width, rect.height, mobile ? 8 : camera.zoom < 8 ? 14 : 22);
+            for (const child of municipalityLabels.children) {
+              const label = child as THREE.Sprite, place = placements.get(label.userData.cityId), candidate = candidates.get(label.userData.cityId);
+              visible(label, !!place); if (!place || !candidate) continue;
+              // Cidades próximas: o nome vai para o lado da cidade e, se faltar espaço, mostra só o nome.
+              const size = place.compact && candidate.compact ? candidate.compact : candidate, map = place.compact ? label.userData.compactMap ??= plaqueTexture(label.userData.cityName, '#fffdf4') : label.userData.fullMap;
+              if (map && label.material.map !== map) { label.material.map = map; label.material.needsUpdate = true; }
+              label.scale.set(size.w * (camera.right - camera.left) / (camera.zoom * rect.width), size.h * (camera.top - camera.bottom) / (camera.zoom * rect.height), 1);
+              label.center.set(.5 - place.dx / size.w, .5 + place.dy / size.h);
+            }
           }
           layoutDirty = false;
           if (trees.visible !== (camera.zoom < 12)) { trees.visible = camera.zoom < 12; dirty = true; }
@@ -388,6 +402,7 @@ export default function WarWorld(props: Props) {
       const leader = leaders.cities.get(cityId), [x,z] = project(city.label[0], city.label[1]);
       const label = plaque(city.name, '#fffdf4', .4, leader ? `@${leader.username}` : undefined);
       label.position.set(x, .87, z); label.userData.cityId = city.id; label.userData.baseId = leader?.id; label.userData.cityName = city.name; label.userData.points = leader ? earnedPoints(leader) : 0; label.userData.aspect = label.scale.y / label.scale.x;
+      if (leader) { label.userData.fullMap = label.material.map; label.userData.compactSize = plaqueSize(city.name); } // versão só com o nome, criada quando faltar espaço
       r.municipalityLabels.add(label);
     }
     r.invalidateLayout(); r.draw();

@@ -102,6 +102,17 @@ export function finishBattle(game: GameState, battle: Battle): GameState {
   const { id, at, winner, red, blue, controls } = battle;
   return { ...game, history: [{ id, at, winner, red, blue, controls }, ...game.history].slice(0, 10) };
 }
+/**
+ * Bases fictícias extras espalhadas pela Bahia (código IBGE, pontos da demonstração), para os nomes das
+ * cidades com exército aparecerem pelo mapa. Vermelho e azul se alternam e cada par tem o mesmo exército,
+ * então o placar só soma forças iguais aos dois lados.
+ */
+export const BAHIA_DEMO_CITIES: readonly (readonly [string, number])[] = [
+  ['2933307', 170], ['2918407', 160], ['2913606', 120], ['2903201', 130], ['2914802', 110], ['2925303', 100], // Vitória da Conquista, Juazeiro, Ilhéus, Barreiras, Itabuna, Porto Seguro
+  ['2918001', 90], ['2931350', 95], ['2905701', 150], ['2919207', 105], ['2924009', 85], ['2914604', 70], // Jequié, Teixeira de Freitas, Camaçari, Lauro de Freitas, Paulo Afonso, Irecê
+  ['2903904', 60], ['2911709', 75], ['2928703', 80], ['2930105', 55], ['2932903', 50], ['2919553', 65], // Bom Jesus da Lapa, Guanambi, Santo Antônio de Jesus, Senhor do Bonfim, Valença, Luís Eduardo Magalhães
+  ['2917508', 45], ['2910727', 70], ['2904605', 40], ['2914703', 35], ['2919306', 30], ['2933604', 25], // Jacobina, Eunápolis, Brumado, Itaberaba, Lençóis, Xique-Xique
+];
 export function createDemo(): GameState {
   const rng = randomFrom(20261016), names = ['aurora', 'atlas', 'vento', 'lince', 'norte', 'bravo', 'farol', 'delta'];
   const bases: Base[] = [];
@@ -109,6 +120,10 @@ export function createDemo(): GameState {
     const team: Team = (i + j) % 2 ? 'blue' : 'red';
     bases.push({ id: `demo-${state.uf}-${j}`, username: `${names[(i + j) % names.length]}_${state.uf.toLowerCase()}_${j + 1}`, uf: state.uf, ...(state.uf === 'BA' ? { municipalityId: ['2927408', '2910800', '2900702'][j] } : {}), team, inventory: { infantry: 4 + Math.floor(rng() * 8), tank: Math.floor(rng() * 3), artillery: Math.floor(rng() * 3), drone: 1 + Math.floor(rng() * 3), aircraft: Math.floor(rng() * 2) }, credits: 0, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
   } });
+  BAHIA_DEMO_CITIES.forEach(([municipalityId, credits], k) => {
+    const pair = Math.floor(k / 2), n = k + 4;
+    bases.push({ id: `demo-BA-${n - 1}`, username: `${names[n % names.length]}_ba_${n}`, uf: 'BA', municipalityId, team: k % 2 ? 'blue' : 'red', inventory: { infantry: 4 + pair * 3 % 7, tank: pair % 3, artillery: (pair + 1) % 3, drone: 1 + pair % 2, aircraft: pair % 4 ? 0 : 1 }, credits, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
+  });
   bases.push({ id: 'demo-you', username: 'voce_demo', uf: 'BA', municipalityId: '2907509', team: 'red', inventory: { infantry: 6, tank: 1, artillery: 1, drone: 1, aircraft: 0 }, credits: 180, joinedAt: '2026-10-15T18:00:00Z', commentDay: '2026-10-15', rewardedComments: 0 });
   return { ...emptyGame(), bases };
 }

@@ -15,7 +15,7 @@ Entrega de 2026-10-16, após o usuário escolher miniaturas e pedir prosseguir c
 - Simulador de comentário para outros estados (`@perfil SP 22`) e para Bahia (`@perfil Catu BA 13`), com uma base por perfil, deduplicação de identificador, teto diário e compra manual de unidades com pontos. O município da Bahia fica fixo após a primeira associação; perfis antigos sem cidade podem vinculá-la uma vez.
 - A ficha da base mostra o ranking municipal por total de pontos ganhos no histórico, separado por código IBGE. O Marechal é o único primeiro colocado; empate no topo não concede o título até haver um líder único. Isso é protótipo local, não ranking compartilhado de campanha.
 - Os lotes da Bahia são uma distribuição visual recalculada quando a quantidade de bases da cidade muda. Eles não salvam posse/posição permanente nem implementam expansão de área por nível; esses requisitos seguem pendentes de regras de tamanho e estabilidade.
-- Demonstração com 82 bases fictícias, ou mapa vazio pelo botão **Opções da demonstração**. A base inicial editável é `@voce_demo`, na Bahia.
+- Demonstração com 106 bases fictícias (82 originais + 24 espalhadas por outras cidades da Bahia em 17/10), ou mapa vazio pelo botão **Opções da demonstração**. A base inicial editável é `@voce_demo`, na Bahia.
 - Batalha demonstrativa de sete minutos, com velocidades 1×, 12× (35 s) e 24×, pausa, trajetórias, explosões, perdas visuais, pintura gradual e resultado.
 - Resultado nacional pela maior força militar total, com todas as bases inscritas. Cada estado recebe a cor da maior força local. Inventários não são consumidos.
 - Histórico dos dez últimos resultados e persistência da demonstração em `localStorage` com validação de estrutura. Dados restritos a esse navegador/origem.
