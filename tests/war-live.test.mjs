@@ -1,24 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LIVE_AUDIENCE, initialViewers, nextViewers } from '../lib/war/live-audience.ts';
+import { LIVE_AUDIENCE, initialViewers, liveClock, nextViewers } from '../lib/war/live-audience.ts';
 import { LIVE_CHAT, formatAudioTime, liveAuthor, liveMessageFrom, nextSpawnAt, pickAudioType, risePath } from '../lib/war/live-chat.ts';
 
 const seeded = (seed = 7) => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 
-test('simulated audience starts near 60, changes every tick by at most ~5% and stays around the average', () => {
-  const random = seeded(42);
-  for (let i = 0; i < 200; i++) { const start = initialViewers(random); assert.ok(start >= 56 && start <= 64); }
-  let viewers = initialViewers(random), sum = 0;
-  for (let i = 0; i < 5000; i++) {
-    const next = nextViewers(viewers, random), limit = Math.max(1, Math.floor(viewers * LIVE_AUDIENCE.maxStepRatio));
-    assert.notEqual(next, viewers);
-    assert.ok(Math.abs(next - viewers) <= limit, `${viewers} -> ${next}`);
-    assert.ok(next >= LIVE_AUDIENCE.min && next <= LIVE_AUDIENCE.max);
-    viewers = next; sum += next;
-  }
-  assert.ok(Math.abs(sum / 5000 - LIVE_AUDIENCE.average) < 3);
+test('simulated audience starts near 40, alternates 2-minute high/low plateaus and stays around the 40 average', () => {
+  assert.equal(LIVE_AUDIENCE.average, 40);
   assert.equal(LIVE_AUDIENCE.intervalMs, 5000);
+  assert.equal(LIVE_AUDIENCE.waveMs, 120_000);
+  assert.equal(LIVE_AUDIENCE.ticksPerWave, 24);
+  const random = seeded(42);
+  for (let i = 0; i < 200; i++) {
+    const start = initialViewers(random);
+    assert.ok(start >= 34 && start <= 46, `start=${start}`);
+  }
+  let viewers = initialViewers(random), sum = 0;
+  const waveMeans = [];
+  for (let w = 0; w < 120; w++) {
+    let waveSum = 0;
+    for (let t = 0; t < LIVE_AUDIENCE.ticksPerWave; t++) {
+      const next = nextViewers(viewers, random), limit = Math.max(2, Math.floor(viewers * LIVE_AUDIENCE.maxStepRatio));
+      assert.ok(Math.abs(next - viewers) <= limit, `${viewers} -> ${next}`);
+      assert.ok(next >= LIVE_AUDIENCE.min && next <= LIVE_AUDIENCE.max);
+      viewers = next;
+      sum += next;
+      waveSum += next;
+    }
+    waveMeans.push(waveSum / LIVE_AUDIENCE.ticksPerWave);
+  }
+  const totalTicks = 120 * LIVE_AUDIENCE.ticksPerWave;
+  assert.ok(Math.abs(sum / totalTicks - LIVE_AUDIENCE.average) < 4, `mean=${sum / totalTicks}`);
+  assert.ok( waveMeans.some(m => m >= 44), 'deve ter ondas de 2 min que sobem e mantêm patamar acima de 44' );
+  assert.ok( waveMeans.some(m => m <= 35), 'deve ter ondas de 2 min que descem e mantêm patamar abaixo de 35' );
   assert.ok(nextViewers(Number.NaN, random) >= LIVE_AUDIENCE.min);
+  const clockStr = liveClock(Date.UTC(2026, 9, 18, 1, 5, 9), 'America/Sao_Paulo');
+  assert.match(clockStr, /^\d{2}:\d{2}:\d{2}$/);
+  assert.equal(clockStr, '22:05:09');
 });
 
 test('super chat is trimmed, limited and keeps the chosen team; links and bad payloads are refused', () => {

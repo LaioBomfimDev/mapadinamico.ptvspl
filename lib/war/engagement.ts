@@ -22,11 +22,44 @@ export function processEngagement(game: GameState, event: EngagementEvent) {
   const credited = capped || duplicate ? owner : awardPoints(owner, { key, kind: event.kind as PointKind, points, at: new Date(event.at).toISOString(), post: event.post, subject: event.kind === 'support' ? actor : event.kind === 'mention' ? target : undefined });
   return { game: { ...game, receipts: [...game.receipts, receipt], bases: game.bases.map(b => b.id === owner.id ? credited : b) }, awarded: credited !== owner, reason: duplicate ? 'Esta ação já pontuou.' : capped ? 'Limite diário desta ação atingido.' : `+${points} pontos para @${owner.username}.` };
 }
-export const ARMY_TIERS = [{ name: 'Acampamento', force: 0 }, { name: 'Destacamento', force: 100 }, { name: 'Pelotão', force: 250 }, { name: 'Companhia', force: 500 }, { name: 'Batalhão', force: 1000 }, { name: 'Divisão', force: 2500 }] as const;
-export function armyTier(base: Base) {
-  const force = forceOf(base), index = ARMY_TIERS.findLastIndex(t => force >= t.force), current = ARMY_TIERS[index], next = ARMY_TIERS[index + 1];
-  return { index, current, next, missing: next ? next.force - force : 0, percent: next ? (force - current.force) / (next.force - current.force) * 100 : 100 };
+
+export type ArmyTierLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export const ARMY_TIERS = [
+  { level: 1 as ArmyTierLevel, name: 'Acampamento', points: 0, force: 0, title: 'Recruta de Fronteira', status: 'Posto Inicial', skinName: 'Skin I · Recruta de Campanha', campScale: 1.0 },
+  { level: 2 as ArmyTierLevel, name: 'Destacamento', points: 50, force: 100, title: 'Cabo de Esquadra', status: 'Guarnição Ativa', skinName: 'Skin II · Patrulha de Fronteira', campScale: 1.08 },
+  { level: 3 as ArmyTierLevel, name: 'Pelotão', points: 120, force: 250, title: 'Sargento de Assalto', status: 'Bastião Tático', skinName: 'Skin III · Assalto Veterano', campScale: 1.16 },
+  { level: 4 as ArmyTierLevel, name: 'Companhia', points: 250, force: 500, title: 'Capitão de Brigada', status: 'Comando Blindado', skinName: 'Skin IV · Brigada de Choque', campScale: 1.24 },
+  { level: 5 as ArmyTierLevel, name: 'Batalhão', points: 500, force: 1000, title: 'Coronel de Divisão', status: 'Fortaleza de Elite', skinName: 'Skin V · Guarda de Elite', campScale: 1.32 },
+  { level: 6 as ArmyTierLevel, name: 'Divisão', points: 1000, force: 2500, title: 'General Supremo', status: 'Cidadela Imperial', skinName: 'Skin VI · Legião Suprema', campScale: 1.4 },
+] as const;
+
+export function clampTierLevel(level = 1): ArmyTierLevel {
+  if (!Number.isFinite(level)) return 1;
+  return Math.max(1, Math.min(6, Math.round(level))) as ArmyTierLevel;
 }
+
+export function armyTier(base: Base) {
+  const force = forceOf(base), points = earnedPoints(base);
+  const pointsIndex = ARMY_TIERS.findLastIndex(t => points >= t.points);
+  const forceIndex = ARMY_TIERS.findLastIndex(t => force >= t.force);
+  const index = Math.max(0, pointsIndex, forceIndex);
+  const current = ARMY_TIERS[index], next = ARMY_TIERS[index + 1];
+  const pointsProgress = next ? Math.min(100, Math.max(0, (points - current.points) / (next.points - current.points) * 100)) : 100;
+  const forceProgress = next ? Math.min(100, Math.max(0, (force - current.force) / (next.force - current.force) * 100)) : 100;
+  return {
+    index,
+    level: current.level,
+    current,
+    next,
+    points,
+    force,
+    missing: next ? Math.max(0, next.force - force) : 0,
+    missingPoints: next ? Math.max(0, next.points - points) : 0,
+    percent: Math.max(pointsProgress, forceProgress),
+  };
+}
+
 export type RankingScope = 'all' | 'state' | 'team' | 'city';
 export function rankBases(bases: Base[], scope: RankingScope = 'all', base?: Base) {
   const eligible = bases.filter(b => scope === 'all' || scope === 'state' && b.uf === base?.uf || scope === 'team' && b.team === base?.team || scope === 'city' && !!base?.municipalityId && b.municipalityId === base.municipalityId);

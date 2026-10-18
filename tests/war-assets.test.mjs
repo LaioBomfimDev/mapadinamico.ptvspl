@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import * as THREE from 'three';
-import { createUnit, animateUnit, disposeUnit, UNIT_MODELS } from '../lib/war/unit-models.ts';
+import { createUnit, animateUnit, disposeUnit, UNIT_MODELS, UNIT_SKINS } from '../lib/war/unit-models.ts';
+import { applyCampCombatMotion, BattleChoreographer, strikePoseAt } from '../lib/war/battle-choreography.ts';
 import { WarEffects } from '../lib/war/vfx.ts';
 import { faceTeamBadge } from '../lib/war/team-badges.ts';
 
@@ -182,3 +183,51 @@ test('explosions enforce a cap, reject invalid coordinates, expire, and dispose 
     assert.equal(atlasDisposals, 1);
   } finally { THREE.TextureLoader.prototype.load = original; }
 });
+
+test('all 6 unit skin levels generate valid partitioned geometry and progressive detail for all 5 unit kinds', () => {
+  assert.equal(UNIT_SKINS.length, 6);
+  for (const { kind } of UNIT_MODELS) {
+    let level1Pieces = 0, level6Pieces = 0;
+    for (let level = 1; level <= 6; level++) {
+      const unit = createUnit(kind, 'red', { level });
+      assert.equal(unit.userData.level, level);
+      assert.equal(unit.userData.skinName, UNIT_SKINS[level - 1].name);
+      let pieces = 0;
+      unit.traverse(mesh => {
+        if (!mesh.isMesh || mesh.userData.teamBadge) return;
+        const ranges = mesh.geometry.userData.pieceRanges;
+        assert(Array.isArray(ranges) && ranges.length > 0);
+        let start = 0;
+        for (const range of ranges) {
+          assert.equal(range.start, start);
+          start += range.count;
+          pieces++;
+        }
+        assert.equal(start, mesh.geometry.getAttribute('position').count);
+      });
+      if (level === 1) level1Pieces = pieces;
+      if (level === 6) level6Pieces = pieces;
+      disposeUnit(unit);
+    }
+    assert(level6Pieces > level1Pieces, `${kind}: level 6 skin adds 3D armor/insignia pieces (${level6Pieces} > ${level1Pieces})`);
+  }
+});
+
+test('combat choreography marches ground units and executes kamikaze nose-dives with self-shatter for aircraft and drones', () => {
+  const from = new THREE.Vector3(0, 0.2, 0), to = new THREE.Vector3(4, 0.2, -3);
+  for (const kind of ['aircraft', 'drone']) {
+    const mid = strikePoseAt(kind, from, to, 0.4, 1);
+    const dive = strikePoseAt(kind, from, to, 0.96, 1);
+    assert(mid.position.y > from.y + 0.5, `${kind} climbs during mid-flight`);
+    assert(dive.pitch > 0.6, `${kind} pitches steeply downward on kamikaze terminal dive`);
+  }
+  const tankPose = strikePoseAt('tank', from, to, 0.5, 0);
+  assert(Math.abs(tankPose.position.y - 0.2) < 0.05, 'ground column marches along terrain elevation');
+
+  const soldier = createUnit('infantry', 'red');
+  soldier.userData.homeX = 0.2; soldier.userData.homeY = 0.07; soldier.userData.homeZ = 0.2; soldier.userData.baseScale = 0.115;
+  applyCampCombatMotion(soldier, 1.5, 1, 2);
+  assert(Math.hypot(soldier.position.x - 0.2, soldier.position.z - 0.2) > 0.005, 'camp unit marches around its slot during battle');
+  disposeUnit(soldier);
+});
+

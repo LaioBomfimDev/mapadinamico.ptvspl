@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { createUnit, type Team, type UnitKind } from './unit-models.ts';
-import { createBaseCamp, CAMP_SURFACE_Y } from './base-camp.ts';
+import { clampUnitLevel, createUnit, type Team, type UnitKind } from './unit-models.ts';
+import { clampCampLevel, createBaseCamp, CAMP_SURFACE_Y } from './base-camp.ts';
 
 type Resource = THREE.BufferGeometry | THREE.Material;
 const shared = new WeakSet<Resource>();
@@ -24,11 +24,15 @@ export class MapModelCache {
     }
     return template.clone(true);
   }
-  unit(kind: UnitKind, team: Team) { return this.get(`${team}:${kind}`, () => createUnit(kind, team)); }
-  camp(team: Team, size: number) {
+  unit(kind: UnitKind, team: Team, level = 1) {
+    const lv = clampUnitLevel(level);
+    return this.get(`${team}:${kind}:lv${lv}`, () => createUnit(kind, team, { level: lv }));
+  }
+  camp(team: Team, size: number, level = 1) {
     if (!Number.isFinite(size) || size <= 0) throw new RangeError('Invalid camp size');
-    const camp = this.get(`${team}:camp`, () => createBaseCamp(team, 1));
-    camp.scale.setScalar(size); camp.userData.surfaceY = CAMP_SURFACE_Y * size; return camp;
+    const lv = clampCampLevel(level);
+    const camp = this.get(`${team}:camp:lv${lv}`, () => createBaseCamp(team, 1, lv));
+    camp.scale.setScalar(size); camp.userData.surfaceY = CAMP_SURFACE_Y * size; camp.userData.level = lv; return camp;
   }
   dispose() {
     if (this.disposed) return;

@@ -3,13 +3,13 @@
 ## Pedido do usuário (decisão confirmada)
 
 - Trocar a marca "Brasil em batalha" pela logo 13/22 enviada pelo usuário e mudar o título para **"Você é 13 ou 22?"**.
-- Ao lado da logo: símbolo de online e quantidade de pessoas vendo a tela ao vivo. Por enquanto, números fictícios em torno de 60, mudando a cada 5 s com variação pequena (~5%).
+- Ao lado da logo: símbolo de online com a **hora atual ao vivo incluindo os segundos (`HH:MM:SS`)** e quantidade de pessoas vendo a tela ao vivo. A pedido do usuário (18/10), a média foi ajustada para **40** (antes 60) e o comportamento ganhou variações de **2 em 2 minutos** (aumentar e manter patamar, ou abaixar e manter patamar, entre 18 e 66) para parecer orgânico e não ficar preso perto de um único número.
 - Pessoas podem mandar **super chat** (texto) ou **áudio**; quem está vendo a tela vê a mensagem subindo ao vivo.
 
 ## O que foi implementado
 
 - Logo recortada em círculo a partir da arte enviada: `public/war-assets/brand/logo-13-22-{128,256,512}.webp` (o cabeçalho usa 128/256). Título da aba, cabeçalho e tela de abertura agora dizem "Você é 13 ou 22?".
-- `components/live-audience.tsx` + `lib/war/live-audience.ts`: selo **AO VIVO** e "N assistindo". Começa entre 56 e 64, muda a cada 5 s em no máximo ~5% do valor (±1 a ±3), sempre um número diferente, puxado de volta para 60 e preso entre 48 e 72. **O número é simulado** (`LIVE_AUDIENCE.simulated`); não mede visitantes reais.
+- `components/live-audience.tsx` + `lib/war/live-audience.ts`: selo **AO VIVO** acompanhado do relógio digital ao vivo com segundos (`liveClock`, atualizado a cada 1 s no fuso `America/Sao_Paulo`, ex.: `22:05:09`) e "N assistindo". A contagem começa perto de 40 (entre 34 e 46), muda a cada 5 s e opera em ondas de 2 minutos (`waveMs: 120_000`, 24 ticks de 5 s): alterna entre regimes que sobem e mantêm um patamar (~48–58), descem e mantêm (~22–32) ou estabilizam perto da média (~36–44), mantendo a média de longo prazo em torno de 40 (`min: 18`, `max: 66`). **O número é simulado** (`LIVE_AUDIENCE.simulated`); não mede visitantes reais.
 - `components/live-chat.tsx` + `lib/war/live-chat.ts` + `components/live.css`: botão "Mande seu recado ao vivo" no lado esquerdo do mapa. O painel permite escolher 13 ou 22, informar o @ (vem preenchido com a base do navegador), escrever um super chat (até 120 caracteres) ou gravar um áudio (até 15 s, com prévia, descarte e envio).
 - As mensagens entram pela borda de baixo da faixa e sobem com velocidade constante (40 px/s), em vermelho ou azul conforme o time, com o @ e o número do time. Uma só nasce quando a anterior abriu espaço, então os balões não se sobrepõem, mesmo com alturas diferentes ou com o painel aberto. O balão de áudio tem botão de tocar/pausar. A própria mensagem ganha contorno dourado.
 - No desktop o painel abre ao lado da faixa; no celular ocupa a largura da tela. Com a ficha de uma base aberta, a faixa vai para a direita da ficha (desktop) ou some (celular). A legenda "Seu exército faz parte dessa história" se esconde enquanto houver mensagens ou painel aberto.

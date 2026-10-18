@@ -76,4 +76,25 @@ test('camp resources are isolated between instances and invalid sizes cannot cre
   assert(Object.isFrozen(CAMP_SLOTS) && Object.values(CAMP_SLOTS).every(Object.isFrozen),'layout constants cannot be mutated by an instance');
 });
 
+test('all 6 camp levels grow architectural detail while staying grounded and within footprint',()=>{
+  let previousTriangles=0;
+  for(let level=1;level<=6;level++){
+    const camp=createBaseCamp('red',1,level),bounds=new THREE.Box3().setFromObject(camp);
+    assert.equal(camp.userData.level,level);
+    assert(Math.abs(bounds.min.y)<1e-7,`level ${level} rests at Y=0`);
+    assert(bounds.min.x>=-0.64-1e-7 && bounds.max.x<=0.64+1e-7);
+    assert(bounds.min.z>=-0.59-1e-7 && bounds.max.z<=0.59+1e-7);
+    let triangles=0,meshes=0;
+    camp.traverse(mesh=>{
+      if(!mesh.isMesh)return;
+      meshes++;
+      triangles+=mesh.geometry.getAttribute('position').count/3;
+    });
+    assert(meshes<12 && triangles<4000,`level ${level} within draw and triangle budget`);
+    assert(triangles>previousTriangles,`level ${level} grows over previous level (${triangles} > ${previousTriangles})`);
+    previousTriangles=triangles;
+    dispose(camp);
+  }
+});
+
 function overlaps(a,b){return a.minX<b.maxX && a.maxX>b.minX && a.minZ<b.maxZ && a.maxZ>b.minZ;}

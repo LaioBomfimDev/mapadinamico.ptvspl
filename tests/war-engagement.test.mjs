@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { emptyGame, registerComment, buyUnit, makeBattle, finishBattle, validateSaved } from '../lib/war/game.ts';
-import { processEngagement, rankBases, armyTier } from '../lib/war/engagement.ts';
+import { processEngagement, rankBases, armyTier, ARMY_TIERS } from '../lib/war/engagement.ts';
 import { earnedPoints, pointsByKind, ledgerOf, SOCIAL_RULES } from '../lib/war/points.ts';
 import { baseLots, projectedState, insideState } from '../lib/war/geography.ts';
 const now = Date.parse('2026-10-16T20:00:00Z');
@@ -80,6 +80,18 @@ test('rankings and tiers use force, preserve national winner rules, and battle c
   assert.equal(armyTier(game.bases[0]).current.name, 'Acampamento');
   assert.equal(rankBases(game.bases)[0].username, 'comandante'); assert.equal(rankBases(game.bases, 'state', game.bases[0]).length, 1); assert.equal(rankBases(game.bases, 'team', game.bases[0]).length, 1);
   const battle = makeBattle(game, 8, now), result = finishBattle(game, battle); assert.equal(battle.winner, 'red'); assert.deepEqual(result.bases, game.bases);
+});
+test('accumulated points unlock 6 progressive army levels, titles, statuses and skins', () => {
+  assert.equal(ARMY_TIERS.length, 6);
+  const base = initial().bases[0];
+  for (const tier of ARMY_TIERS) {
+    const sample = { ...base, credits: tier.points, progress: undefined };
+    const info = armyTier(sample);
+    assert.equal(info.level, tier.level);
+    assert.equal(info.current.title, tier.title);
+    assert.equal(info.current.status, tier.status);
+    assert.equal(info.current.skinName, tier.skinName);
+  }
 });
 test('compound corners stay within all 27 UFs and neighbouring compounds leave a clear street corridor', async () => {
   const states = JSON.parse(await fs.readFile(new URL('../public/war-assets/brazil-states.json', import.meta.url))).map(projectedState);
