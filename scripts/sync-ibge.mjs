@@ -74,11 +74,12 @@ const municipalities = baGeo.features.map(feature => {
   const polygons = feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates;
   for (const polygon of polygons) for (const ring of polygon) if (ring.length < 4 || !ring.every(point => point.length >= 2 && point.every(Number.isFinite))) throw Error(`Invalid municipality ring: ${id}`);
   const { point, clearance } = representativePoint(polygons);
-  return { id, name: city.nome, polygons, label: point, labelSize: Math.max(.14, Math.min(2.4, clearance * 3)) };
+  // radius: distância do ponto do nome até a divisa; o mapa distribui as bases dentro desse círculo sem desenhar contornos.
+  return { id, name: city.nome, polygons, label: point, labelSize: Math.max(.14, Math.min(2.4, clearance * 3)), radius: Number(clearance.toFixed(5)) };
 }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 if (new Set(municipalities.map(city => city.id)).size !== 417 || municipalities.some(city => !city.name || !pointInPolygons(city.label, city.polygons))) throw Error('Bahia municipality names, IDs, or label positions are incomplete.');
 const municipalitiesBytes = JSON.stringify(municipalities);
-const municipalityIndex = municipalities.map(({ id, name, label, labelSize }) => ({ id, name, label, labelSize }));
+const municipalityIndex = municipalities.map(({ id, name, label, labelSize, radius }) => ({ id, name, label, labelSize, radius }));
 const municipalityIndexBytes = JSON.stringify(municipalityIndex);
 const out = new URL('../public/war-assets/', import.meta.url); await fs.mkdir(out, { recursive: true });
 await fs.writeFile(new URL('brazil-states.json', out), bytes);

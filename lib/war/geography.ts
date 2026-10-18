@@ -1,6 +1,7 @@
 export type Point = [number, number];
 export type StateGeometry = { id: string; uf: string; name: string; polygons: Point[][][] };
-export type MunicipalityIndexItem = { id: string; name: string; label: Point; labelSize: number };
+/** radius: graus do ponto do nome até a divisa mais próxima; o círculo inteiro fica dentro da cidade. */
+export type MunicipalityIndexItem = { id: string; name: string; label: Point; labelSize: number; radius?: number };
 export const project = (lng: number, lat: number): Point => [(lng + 54) * 1.5, -(lat + 14) * 1.5];
 export function inRing(point: Point, ring: Point[]) {
   let inside = false;
@@ -16,6 +17,24 @@ export function stateBounds(state: StateGeometry) {
   const ring = state.polygons.flatMap(polygon => polygon[0]);
   return { minX: Math.min(...ring.map(p => p[0])), maxX: Math.max(...ring.map(p => p[0])), minZ: Math.min(...ring.map(p => p[1])), maxZ: Math.max(...ring.map(p => p[1])) };
 }
+export const CITY_STABLE_SLOTS = 24;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)), CAMP_TO_SPACING = .85, CAMP_HALF_DIAGONAL = Math.hypot(.64, .59);
+/**
+ * Lotes da cidade sem desenhar a divisa: espiral de girassol a partir do ponto do nome, um lote por base na
+ * ordem de chegada. O círculo de raio `radius` (mundo) cabe inteiro na cidade, então todo quartel fica dentro
+ * dela. Até CITY_STABLE_SLOTS bases cada uma mantém o seu lugar; acima disso a espiral se aperta para caber.
+ * A distância mínima entre vizinhos na espiral é 1,546 × espaçamento, maior que a diagonal de dois quartéis.
+ */
+export function cityLots(center: Point, radius: number, count: number): { x: number; z: number; size: number; spacing: number }[] {
+  if (!(count > 0) || !(radius > 0) || !center.every(Number.isFinite)) return [];
+  const slots = Math.max(count, CITY_STABLE_SLOTS), spacing = radius * .95 / (Math.sqrt(slots - .5) + CAMP_TO_SPACING * CAMP_HALF_DIAGONAL), size = spacing * CAMP_TO_SPACING;
+  return Array.from({ length: count }, (_, i) => {
+    const distance = spacing * Math.sqrt(i + .5), angle = i * GOLDEN_ANGLE;
+    return { x: center[0] + distance * Math.cos(angle), z: center[1] + distance * Math.sin(angle), size, spacing };
+  });
+}
+/** Raio da cidade em unidades do mapa (o índice guarda graus; o mapa usa 1,5 unidade por grau). */
+export const cityRadius = (city: Pick<MunicipalityIndexItem, 'radius' | 'labelSize'>) => (city.radius && city.radius > 0 ? city.radius : Math.max(.01, city.labelSize / 3)) * 1.5;
 // Row-major lots on a rectangular street grid. Every corner must be inside the UF.
 export function baseLots(state: StateGeometry, required: number): { x: number; z: number; size: number; spacing: number }[] {
   const b = stateBounds(state), width = b.maxX - b.minX, height = b.maxZ - b.minZ;
