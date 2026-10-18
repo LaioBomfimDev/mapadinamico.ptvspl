@@ -52,6 +52,19 @@ export async function createLocalSupabase(secret = 'local-secret') {
     }
     const bucket = url.pathname.match(/^\/storage\/v1\/object\/([^/]+)$/);
     if (bucket && method === 'DELETE') { const { prefixes = [] } = JSON.parse(String(init.body || '{}')); for (const name of prefixes) files.delete(`${bucket[1]}/${name}`); return Response.json(prefixes.map(name => ({ name }))); }
+    // Tabelas com filtros simples "coluna=eq.valor" e "select=a,b", como o PostgREST (só GET e DELETE).
+    const table = url.pathname.match(/^\/rest\/v1\/([a-z_]+)$/);
+    if (table && table[1] !== 'rpc' && (method === 'GET' || method === 'DELETE')) {
+      const identifier = /^[a-z_][a-z0-9_]*$/, filters = [...url.searchParams].filter(([key, value]) => key !== 'select' && identifier.test(key) && value.startsWith('eq.'));
+      const columns = (url.searchParams.get('select') || '*').split(',').filter(column => column === '*' || identifier.test(column));
+      if (!identifier.test(table[1]) || !columns.length || (method === 'DELETE' && !filters.length)) return Response.json({ message: 'Consulta não suportada.' }, { status: 400 });
+      const where = filters.length ? ` where ${filters.map(([key], i) => `${key} = $${i + 1}`).join(' and ')}` : '';
+      const values = filters.map(([, value]) => value.slice(3));
+      try {
+        const rows = await db.transaction(async tx => { await tx.exec('set local role service_role'); return (await tx.query(method === 'GET' ? `select ${columns.join(', ')} from public.${table[1]}${where}` : `delete from public.${table[1]}${where} returning ${columns.join(', ')}`, values)).rows; });
+        return Response.json(rows);
+      } catch (error) { return Response.json({ code: error.code, message: error.message }, { status: 400 }); }
+    }
     const match = url.pathname.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)$/i);
     if (!match || method !== 'POST') return Response.json({ message: 'Rota não suportada no Supabase local.' }, { status: 404 });
     const { status, body } = await call(match[1], init.body ? JSON.parse(String(init.body)) : {});

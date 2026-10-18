@@ -1,6 +1,7 @@
 // Administração do jogo enquanto o Instagram não está conectado. Lê MAP_ADMIN_TOKEN do ambiente ou do .env.local.
 //   node scripts/game-admin.mjs comentario "@fulano Catu BA 13"
 //   node scripts/game-admin.mjs comprar u-fulano tank
+//   node scripts/game-admin.mjs apagar @fulano     (pedido de exclusão de dados: base, pontos, chat e áudios)
 // Para o site publicado: node scripts/game-admin.mjs --site https://seu-site.vercel.app comentario "@fulano SP 22"
 import { readFile } from 'node:fs/promises';
 
@@ -10,9 +11,10 @@ const [command, ...rest] = args;
 const token = process.env.MAP_ADMIN_TOKEN || (await readFile(new URL('../.env.local', import.meta.url), 'utf8').catch(() => '')).match(/^MAP_ADMIN_TOKEN=(.+)$/m)?.[1]?.trim();
 const body = command === 'comentario' && rest[0] ? { action: 'comment', text: rest.join(' ') }
   : command === 'comprar' && rest.length === 2 ? { action: 'buy', baseId: rest[0], kind: rest[1] }
+  : command === 'apagar' && rest.length === 1 ? { action: 'delete', username: rest[0] }
   : null;
 if (!body || !token) {
-  console.error(!token ? 'Defina MAP_ADMIN_TOKEN (no .env.local ou no ambiente).' : 'Uso: comentario "@fulano Catu BA 13" | comprar <id-da-base> <infantry|tank|artillery|drone|aircraft>');
+  console.error(!token ? 'Defina MAP_ADMIN_TOKEN (no .env.local ou no ambiente).' : 'Uso: comentario "@fulano Catu BA 13" | comprar <id-da-base> <infantry|tank|artillery|drone|aircraft> | apagar @fulano');
   process.exit(1);
 }
 const response = await fetch(new URL('/api/game/admin', site), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

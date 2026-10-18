@@ -67,3 +67,9 @@ Projeto na Vercel → **Settings → Environment Variables** → adicione as qua
 ## Testar sem Supabase (opcional, para desenvolvimento)
 
 `node scripts/supabase-local.mjs` liga um Supabase de teste neste computador (Postgres embutido, dados só na memória). Use no `.env.local`: `SUPABASE_URL=http://127.0.0.1:54321`, `SUPABASE_SECRET_KEY=local-secret` e um `MAP_ADMIN_TOKEN`. Ele não tem tempo real: o chat consulta a cada 3 s.
+
+## Situação em 17/10/2026
+
+- Projeto Supabase do usuário: `utatdfchtnwxfurgbfqn` (URL `https://utatdfchtnwxfurgbfqn.supabase.co`). As duas migrações foram executadas pelo SQL Editor com conteúdo conferido por hash contra os arquivos do repositório. Conferência: 7 de 7 tabelas com RLS, `live_messages` na publicação de tempo real, pasta `live-audio` pública (limite 921600 bytes), funções sem execução para `anon`, `anon` lê o chat mas não grava nem lê `bases`.
+- Falta: colocar `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `MAP_ADMIN_TOKEN` na Vercel e no `.env.local`.
+- Na Vercel existem dois projetos ligados ao mesmo repositório: `vocee13ou22` (https://vocee13ou22.vercel.app) e `mapadinamico.ptvspl` (https://mapadinamicoptvspl.vercel.app). Ambos publicam o `main`; as variáveis precisam ir no projeto que será usado.
