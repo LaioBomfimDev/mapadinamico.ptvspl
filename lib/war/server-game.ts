@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { CATALOG, RULES, STATES, parseComment, type Base, type BattleRecord, type UnitKind } from './game.ts';
+import { CATALOG, RULES, STATES, parseComment, parseInstagramComment, type Base, type BattleRecord, type UnitKind } from './game.ts';
 import { validLedger, type PointEntry } from './points.ts';
 
 /**
@@ -84,12 +84,19 @@ export async function loadGameState(env: ServerEnv, fetcher?: Fetcher) {
 }
 
 /**
- * Inscrição por comentário. O texto segue o formato do jogo (@perfil Catu BA 13). Quando vier do Instagram,
- * o @ e o ID são os informados pela Meta, não o que a pessoa escreveu.
+ * Inscrição por comentário. Quando vier do Instagram, aceita tanto comentários com cidade/estado
+ * ("Catu BA 13", "SP 22") quanto comentários só com o time ("13", "22", "PT", "PL"), espalhando
+ * quem não informou cidade entre os estados do Brasil pelo @ da pessoa.
  */
-export async function registerServerComment(env: ServerEnv, input: { text: string; commentId: string; at: number; instagramId?: string; instagramUsername?: string }, municipalities: readonly Municipality[], fetcher?: Fetcher) {
-  const text = input.instagramUsername ? `@${input.instagramUsername} ${input.text.trim().replace(/^@[a-z\d._]{1,30}\s+/i, '')}` : input.text;
-  const parsed = parseComment(text, municipalities);
+export async function registerServerComment(
+  env: ServerEnv,
+  input: { text: string; commentId: string; at: number; instagramId?: string; instagramUsername?: string; allowTeamFallback?: boolean },
+  municipalities: readonly Municipality[],
+  fetcher?: Fetcher,
+) {
+  const parsed = input.instagramUsername
+    ? parseInstagramComment(input.text, input.instagramUsername, municipalities, { allowTeamFallback: input.allowTeamFallback })
+    : parseComment(input.text, municipalities);
   if (parsed.uf === 'BA' && !parsed.municipalityId) throw new GameServerError('Na Bahia, informe a cidade oficial no comentário, por exemplo: Catu BA 13.', 400);
   if (!Number.isFinite(input.at) || !input.commentId.trim() || input.commentId.length > 200) throw new GameServerError('Comentário sem identificação válida.', 400);
   if (input.instagramId !== undefined && !/^\d{1,30}$/.test(input.instagramId)) throw new GameServerError('ID do Instagram inválido.', 400);

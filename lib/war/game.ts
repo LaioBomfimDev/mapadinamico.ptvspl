@@ -47,13 +47,109 @@ export function score(bases: Base[]) {
 export function controlOf(bases: Base[]): Control {
   return Object.fromEntries(STATES.map(state => { const total = score(bases.filter(base => base.uf === state.uf)); return [state.uf, total.red === total.blue ? 'neutral' : total.red > total.blue ? 'red' : 'blue']; }));
 }
+export function hashUsername(username: string): number {
+  const clean = normalize(username.replace(/^@/, ''));
+  let hash = 2166136261;
+  for (let i = 0; i < clean.length; i++) {
+    hash ^= clean.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash >>> 0;
+}
+export function stateForUsername(username: string) {
+  return STATES[hashUsername(username) % STATES.length];
+}
+export function bahiaCityForUsername(username: string, municipalities: readonly { id: string; name: string }[] = []): string {
+  const hash = hashUsername(username);
+  if (BAHIA_DEMO_CITIES.length > 0) return BAHIA_DEMO_CITIES[hash % BAHIA_DEMO_CITIES.length][0];
+  if (municipalities.length > 0) return municipalities[hash % municipalities.length].id;
+  return '2927408';
+}
 export function parseComment(text: string, municipalities: readonly { id: string; name: string }[] = []) {
-  const match = text.trim().match(/^@([a-z\d._]{1,30})\s+(.+?)\s+(13|22|pt|pl)$/i);
-  if (!match) throw Error('Use @seunome Catu BA 13 na Bahia ou @seunome SP 22 nos outros estados.');
-  const location = normalize(match[2]), city = municipalities.find(item => location === `${normalize(item.name)} ba` || location === `ba ${normalize(item.name)}`);
+  const trimmed = text.trim();
+  const teamOnly = trimmed.match(/^@([a-z\d._]{1,30})\s+(13|22|pt|pl)$/i);
+  if (teamOnly) {
+    const username = teamOnly[1].toLowerCase();
+    const state = stateForUsername(username);
+    const municipalityId = state.uf === 'BA' ? bahiaCityForUsername(username, municipalities) : undefined;
+    return { username, uf: state.uf, municipalityId, team: /^(13|pt)$/i.test(teamOnly[2]) ? 'red' as const : 'blue' as const, locationExplicit: false };
+  }
+  const match = trimmed.match(/^@([a-z\d._]{1,30})\s+(.+?)\s+(13|22|pt|pl)$/i);
+  if (!match) throw Error('Use @seunome Catu BA 13 na Bahia, @seunome SP 22 nos outros estados ou @seunome 13 / 22.');
+  const location = normalize(match[2]);
+  const city = municipalities.find(item => {
+    const name = normalize(item.name);
+    return location === `${name} ba` || location === `ba ${name}` || location === name;
+  });
   const state = city ? STATES.find(s => s.uf === 'BA') : STATES.find(s => normalize(s.uf) === location || normalize(s.name) === location);
   if (!state) throw Error('Local não reconhecido. Na Bahia, informe também o município, por exemplo: @seunome Catu BA 13.');
-  return { username: match[1].toLowerCase(), uf: state.uf, municipalityId: city?.id, team: /^(13|pt)$/i.test(match[3]) ? 'red' as const : 'blue' as const };
+  return { username: match[1].toLowerCase(), uf: state.uf, municipalityId: city?.id, team: /^(13|pt)$/i.test(match[3]) ? 'red' as const : 'blue' as const, locationExplicit: true };
+}
+export function parseInstagramComment(
+  rawText: string,
+  rawUsername: string,
+  municipalities: readonly { id: string; name: string }[] = [],
+  options: { allowTeamFallback?: boolean } = {},
+) {
+  const cleanUser = rawUsername.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z\d._]/g, '').slice(0, 30);
+  if (!cleanUser) throw Error('Perfil do Instagram inválido.');
+  const stripped = rawText.trim().replace(/^(?:@[a-z\d._]{1,30}\s+)+/i, '').trim();
+  try {
+    const direct = parseComment(`@${cleanUser} ${stripped}`, municipalities);
+    if (direct.uf === 'BA' && !direct.municipalityId) {
+      return { ...direct, municipalityId: bahiaCityForUsername(cleanUser, municipalities) };
+    }
+    return direct;
+  } catch { /* Continua para interpretação livre de comentário do Instagram */ }
+
+  const norm = normalize(stripped);
+  const hasRed = /\b(13|pt|lula|vermelho|vermelha|esquerda)\b/.test(norm) || /(?:^|\D)13(?:\D|$)/.test(stripped) || /[🔴❤️🚩⭐]/u.test(rawText);
+  const hasBlue = /\b(22|pl|bolsonaro|mito|azul|direita)\b/.test(norm) || /(?:^|\D)22(?:\D|$)/.test(stripped) || /[🔵💙🇧🇷]/u.test(rawText);
+  let team: Team | null = null;
+  if (hasRed && !hasBlue) team = 'red';
+  else if (hasBlue && !hasRed) team = 'blue';
+  else if (hasRed && hasBlue) {
+    const idx13 = norm.search(/\b(13|pt|lula|vermelho)\b/), idx22 = norm.search(/\b(22|pl|bolsonaro|azul)\b/);
+    team = idx13 >= 0 && (idx22 < 0 || idx13 <= idx22) ? 'red' : 'blue';
+  } else if (options.allowTeamFallback && (norm.length > 0 || rawText.trim().length > 0)) {
+    team = hashUsername(cleanUser) % 2 === 0 ? 'red' : 'blue';
+  }
+  if (!team) throw Error('Escolha 13 ou 22.');
+
+  const locationWords = norm.replace(/\b(13|22|pt|pl|lula|bolsonaro|mito|vermelho|vermelha|azul|time|sou|de|do|da|em|no|na|bora|vai|aqui|e)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (locationWords) {
+    const sortedCities = [...municipalities].sort((a, b) => b.name.length - a.name.length);
+    const matchedCity = sortedCities.find(item => {
+      const cName = normalize(item.name);
+      return cName.length >= 3 && (locationWords === cName || locationWords === `${cName} ba` || locationWords === `ba ${cName}` || new RegExp(`(?:^|\\s)${cName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|$)`).test(locationWords));
+    });
+    if (matchedCity) {
+      return { username: cleanUser, uf: 'BA', municipalityId: matchedCity.id, team, locationExplicit: true };
+    }
+    const sortedStates = [...STATES].sort((a, b) => b.name.length - a.name.length);
+    const matchedState = sortedStates.find(s => {
+      const sName = normalize(s.name), sUf = normalize(s.uf);
+      return locationWords === sUf || locationWords === sName || new RegExp(`(?:^|\\s)${sName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|$)`).test(locationWords) || new RegExp(`(?:^|\\s)${sUf}(?:\\s|$)`).test(locationWords);
+    });
+    if (matchedState) {
+      return {
+        username: cleanUser,
+        uf: matchedState.uf,
+        municipalityId: matchedState.uf === 'BA' ? bahiaCityForUsername(cleanUser, municipalities) : undefined,
+        team,
+        locationExplicit: true,
+      };
+    }
+  }
+
+  const autoState = stateForUsername(cleanUser);
+  return {
+    username: cleanUser,
+    uf: autoState.uf,
+    municipalityId: autoState.uf === 'BA' ? bahiaCityForUsername(cleanUser, municipalities) : undefined,
+    team,
+    locationExplicit: false,
+  };
 }
 export function registerComment(game: GameState, text: string, commentId: string, now: number, municipalities: readonly { id: string; name: string }[] = []) {
   if (!Number.isFinite(now) || !commentId.trim() || commentId.length > 200) throw Error('Comentário sem identificação válida.');

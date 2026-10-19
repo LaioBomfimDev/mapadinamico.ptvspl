@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { cleanCommentText, commentsFrom, handleInstagramComments, validMetaSignature, verifySubscription } from '../lib/war/instagram-webhook.ts';
+import { syncInstagramComments } from '../lib/war/instagram-sync.ts';
+import { stateForUsername } from '../lib/war/game.ts';
 import { loadGameState } from '../lib/war/server-game.ts';
 import { deleteServerProfile } from '../lib/war/server-privacy.ts';
 import { postLiveMessage } from '../lib/war/server-live.ts';
@@ -49,17 +51,62 @@ test('a comment on the official post creates the base of whoever commented, with
   assert.equal((await deliver(raw)).body.counted, 0, 'a Meta reenviando o mesmo lote não duplica nada');
 });
 
-test('comments outside the format, from the game account, from other posts or other accounts are ignored without failing', async () => {
+test('comments without team, from the game account, from other posts or other accounts are ignored; comments without city spread across Brazil by @', async () => {
   const before = (await bases()).length;
-  const raw = payload(comment('c-10', 'que jogo legal', '9201', 'curioso'), comment('c-11', 'SP 22', env.INSTAGRAM_ACCOUNT_ID, 'vocee13ou22'), comment('c-12', 'BA 13', '9202', 'sem_cidade'), comment('c-13', 'Catu BA 22', '9101', 'fulano.real'), { field: 'mentions', value: {} });
+  const raw = payload(comment('c-10', 'que jogo legal', '9201', 'curioso'), comment('c-11', 'SP 22', env.INSTAGRAM_ACCOUNT_ID, 'vocee13ou22'), comment('c-12', '13', '9202', 'sem_cidade'), comment('c-13', 'Catu BA 22', '9101', 'fulano.real'), { field: 'mentions', value: {} });
   const result = await deliver(raw);
-  assert.equal(result.status, 200); assert.equal(result.body.counted, 0); assert.equal(result.body.ignored, 3, 'formato errado, Bahia sem cidade e troca de time');
+  assert.equal(result.status, 200); assert.equal(result.body.counted, 1); assert.equal(result.body.created, 1); assert.equal(result.body.ignored, 2, 'sem time e troca de time são ignorados; só time cria base pelo @');
+  const semCidade = (await bases()).find(b => b.username === 'sem_cidade');
+  assert.equal(semCidade?.uf, stateForUsername('sem_cidade').uf);
+  assert.equal(semCidade?.team, 'red');
   const other = JSON.stringify({ object: 'instagram', entry: [{ id: '999', time, changes: [comment('c-14', 'SP 13', '9203', 'outra_conta')] }] });
   assert.equal((await deliver(other)).body.counted, 0);
   const onlyOnePost = { ...env, INSTAGRAM_MEDIA_IDS: '1802, 1803' };
   assert.equal((await deliver(payload(comment('c-15', 'SP 13', '9204', 'post_errado')), undefined, onlyOnePost)).body.counted, 0);
-  assert.equal((await bases()).length, before);
+  assert.equal((await bases()).length, before + 1);
   assert.equal((await deliver('{json quebrado')).status, 400);
+});
+
+test('syncInstagramComments fetches existing comments from Instagram posts without city and creates bases spread across states by @', async () => {
+  const syncEnv = { ...env, INSTAGRAM_ACCESS_TOKEN: 'IG-fake-token' };
+  const graphFetcher = async (input, init) => {
+    const url = String(input);
+    if (url.includes('graph.instagram.com')) {
+      if (url.includes('/media?')) {
+        return new Response(JSON.stringify({ data: [
+          { id: 'm-1', shortcode: 'DemLNxBxY22', permalink: 'https://www.instagram.com/p/DemLNxBxY22/' },
+          { id: 'm-2', shortcode: 'Demxskmpibh', permalink: 'https://www.instagram.com/p/Demxskmpibh/' },
+        ] }), { status: 200 });
+      }
+      if (url.includes('/m-1/comments')) {
+        return new Response(JSON.stringify({ data: [
+          { id: 'igc-101', text: '13 🔥', timestamp: '2026-10-18T12:00:00Z', username: 'pessoa_post1_a', from: { id: '7001', username: 'pessoa_post1_a' } },
+          { id: 'igc-102', text: 'Aqui é 22!', timestamp: '2026-10-18T12:05:00Z', username: 'pessoa_post1_b', from: { id: '7002', username: 'pessoa_post1_b' } },
+        ] }), { status: 200 });
+      }
+      if (url.includes('/m-2/comments')) {
+        return new Response(JSON.stringify({ data: [
+          { id: 'igc-201', text: 'Bora participar!', timestamp: '2026-10-18T14:00:00Z', username: 'pessoa_post2_a', from: { id: '7003', username: 'pessoa_post2_a' } },
+          { id: 'igc-202', text: '22 neles', timestamp: '2026-10-18T14:10:00Z', username: 'pessoa_post2_b', from: { id: '7004', username: 'pessoa_post2_b' } },
+        ] }), { status: 200 });
+      }
+    }
+    return local.fetcher(input, init);
+  };
+  const syncResult = await syncInstagramComments(syncEnv, municipalities, { force: true, fetcher: graphFetcher });
+  assert.equal(syncResult.synced, true);
+  assert.equal(syncResult.postsChecked, 2);
+  assert.equal(syncResult.commentsFound, 4);
+  assert.equal(syncResult.created, 4);
+  const all = await bases();
+  for (const handle of ['pessoa_post1_a', 'pessoa_post1_b', 'pessoa_post2_a', 'pessoa_post2_b']) {
+    const found = all.find(b => b.username === handle);
+    assert.ok(found, `base criada para ${handle}`);
+    assert.equal(found.uf, stateForUsername(handle).uf);
+  }
+  const secondSync = await syncInstagramComments(syncEnv, municipalities, { force: true, fetcher: graphFetcher });
+  assert.equal(secondSync.created, 0);
+  assert.equal(secondSync.duplicates, 4);
 });
 
 test('if the database is down the webhook answers 503 so Meta delivers again later', async () => {
@@ -89,3 +136,4 @@ test('a data deletion request removes the base, its points, chat messages and au
   assert.deepEqual(await deleteServerProfile(env, 'ninguem', local.fetcher), { username: 'ninguem', bases: 0, messages: 0, audios: 0 });
   await assert.rejects(deleteServerProfile(env, 'nome com espaço', local.fetcher), { message: /inválido/ });
 });
+
