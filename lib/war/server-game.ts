@@ -92,7 +92,7 @@ export async function registerServerComment(
   env: ServerEnv,
   input: { text: string; commentId: string; at: number; instagramId?: string; instagramUsername?: string; allowTeamFallback?: boolean },
   municipalities: readonly Municipality[],
-  fetcher?: Fetcher,
+  fetcher: Fetcher = fetch,
 ) {
   const parsed = input.instagramUsername
     ? parseInstagramComment(input.text, input.instagramUsername, municipalities, { allowTeamFallback: input.allowTeamFallback })
@@ -100,10 +100,36 @@ export async function registerServerComment(
   if (parsed.uf === 'BA' && !parsed.municipalityId) throw new GameServerError('Na Bahia, informe a cidade oficial no comentário, por exemplo: Catu BA 13.', 400);
   if (!Number.isFinite(input.at) || !input.commentId.trim() || input.commentId.length > 200) throw new GameServerError('Comentário sem identificação válida.', 400);
   if (input.instagramId !== undefined && !/^\d{1,30}$/.test(input.instagramId)) throw new GameServerError('ID do Instagram inválido.', 400);
-  return callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', {
+  const rpcArgs = {
     p_comment_id: input.commentId, p_username: parsed.username, p_uf: parsed.uf, p_municipality_id: parsed.municipalityId ?? null, p_team: parsed.team,
     p_at: new Date(input.at).toISOString(), p_instagram_id: input.instagramId ?? null, p_points: RULES.pointsPerComment, p_daily_cap: RULES.dailyCommentCap,
-  }, fetcher);
+  };
+  try {
+    return await callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', rpcArgs, fetcher);
+  } catch (error) {
+    if (input.instagramUsername && error instanceof GameServerError && error.message === MESSAGES.base_ja_definida[0]) {
+      const current = await loadGameState(env, fetcher).catch(() => null);
+      const existing = current?.bases.find(b => b.username === parsed.username);
+      if (existing) {
+        if (parsed.locationExplicit && env.SUPABASE_URL && env.SUPABASE_SECRET_KEY) {
+          await fetcher(new URL(`/rest/v1/bases?id=eq.${encodeURIComponent(existing.id)}`, env.SUPABASE_URL), {
+            method: 'PATCH',
+            headers: { apikey: env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uf: parsed.uf, municipality_id: parsed.municipalityId ?? null, team: parsed.team }),
+            cache: 'no-store',
+          }).catch(() => null);
+          return callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', rpcArgs, fetcher);
+        }
+        return callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', {
+          ...rpcArgs,
+          p_uf: existing.uf,
+          p_municipality_id: existing.municipalityId ?? null,
+          p_team: existing.team,
+        }, fetcher);
+      }
+    }
+    throw error;
+  }
 }
 
 export async function buyServerUnit(env: ServerEnv, input: { requestId: string; baseId: string; kind: string }, fetcher?: Fetcher) {
