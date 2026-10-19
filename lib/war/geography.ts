@@ -35,6 +35,48 @@ export function cityLots(center: Point, radius: number, count: number): { x: num
 }
 /** Raio da cidade em unidades do mapa (o índice guarda graus; o mapa usa 1,5 unidade por grau). */
 export const cityRadius = (city: Pick<MunicipalityIndexItem, 'radius' | 'labelSize'>) => (city.radius && city.radius > 0 ? city.radius : Math.max(.01, city.labelSize / 3)) * 1.5;
+
+const BOARD_CITY_SHIFTS: readonly Point[] = [
+  [0, 0], [-0.15, 0], [-0.28, 0], [-0.18, -0.12], [-0.18, 0.12],
+  [0, -0.18], [0, 0.18], [-0.42, 0], [-0.3, -0.2], [-0.3, 0.2],
+];
+
+function lotCornersInsideState(lot: { x: number; z: number; size: number }, state: StateGeometry) {
+  const hx = lot.size * 0.64, hz = lot.size * 0.59;
+  return [[-hx, -hz], [hx, -hz], [-hx, hz], [hx, hz], [0, 0]].every(([dx, dz]) => insideState([lot.x + dx, lot.z + dz], state));
+}
+
+/**
+ * Lotes visuais para o tabuleiro 3D: garante espaçamento e tamanho legíveis para municípios pequenos
+ * (como Catu com 4 membros) sem sobrepor quartéis e mantendo todos os cantos dentro do território do estado.
+ */
+export function boardCityLots(center: Point, radius: number, count: number, state?: StateGeometry): { x: number; z: number; size: number; spacing: number }[] {
+  if (!(count > 0) || !(radius > 0) || !center.every(Number.isFinite)) return [];
+  const slots = Math.max(count, 4);
+  const campRatio = 0.76;
+  const candidateRadii = [
+    Math.max(radius * 4.5, 0.62),
+    Math.max(radius * 3.6, 0.50),
+    Math.max(radius * 2.8, 0.38),
+    Math.max(radius * 2.0, 0.28),
+    Math.max(radius * 1.4, 0.18),
+    radius,
+  ];
+  for (const targetRadius of candidateRadii) {
+    const spacing = targetRadius * 0.95 / (Math.sqrt(slots - 0.5) + campRatio * CAMP_HALF_DIAGONAL);
+    const size = spacing * campRatio;
+    for (const [sx, sz] of state ? BOARD_CITY_SHIFTS : ([[0, 0]] as const)) {
+      const cx = center[0] + sx, cz = center[1] + sz;
+      const lots = Array.from({ length: count }, (_, i) => {
+        const distance = count === 1 ? 0 : spacing * Math.sqrt(i + 0.65);
+        const angle = i * GOLDEN_ANGLE;
+        return { x: cx + distance * Math.cos(angle), z: cz + distance * Math.sin(angle), size, spacing };
+      });
+      if (!state || lots.every(lot => lotCornersInsideState(lot, state))) return lots;
+    }
+  }
+  return cityLots(center, radius, count);
+}
 // Row-major lots on a rectangular street grid. Every corner must be inside the UF.
 export function baseLots(state: StateGeometry, required: number): { x: number; z: number; size: number; spacing: number }[] {
   const b = stateBounds(state), width = b.maxX - b.minX, height = b.maxZ - b.minZ;

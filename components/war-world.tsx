@@ -7,7 +7,7 @@ import { WarEffects } from '../lib/war/vfx';
 import { ToyDebris } from '../lib/war/destruction';
 import { faceTeamBadge } from '../lib/war/team-badges';
 import { CAMP_SLOTS, CAMP_SURFACE_Y } from '../lib/war/base-camp';
-import { baseLots, cityLots, cityRadius, projectedState, project, stateBounds, type MunicipalityIndexItem, type StateGeometry } from '../lib/war/geography';
+import { baseLots, boardCityLots, cityRadius, projectedState, project, stateBounds, type MunicipalityIndexItem, type StateGeometry } from '../lib/war/geography';
 import { CATALOG, STATES, type Base, type Battle, type Control, type UnitKind, type Team } from '../lib/war/game';
 import { armyTier, cityMarechals } from '../lib/war/engagement';
 import { mapRankingLeaders, fitMapLabels, type LabelCandidate } from '../lib/war/map-labels';
@@ -122,8 +122,23 @@ export default function WarWorld(props: Props) {
           const cityLabel = cityId ? r.municipalityLabels.children.find(label => label.userData.cityId === cityId) as THREE.Sprite | undefined : undefined;
           const cityIndex = cityId ? latest.current.municipalityIndex.find(item => item.id === cityId) : undefined;
           const cityPoint = cityIndex ? project(cityIndex.label[0], cityIndex.label[1]) : undefined;
-          let p = (id ? r.positions.get(id)?.clone() : undefined) ?? cityLabel?.position.clone() ?? (cityPoint ? new THREE.Vector3(cityPoint[0], .69, cityPoint[1]) : undefined);
-          if (cityId && !id) zoom = cityIndex ? THREE.MathUtils.clamp(20 / Math.max(cityRadius(cityIndex) * 3, .18), 12, 100) : Math.min(42, Math.max(12, 22 / Math.max(cityLabel?.scale.x ?? 0, .18)));
+          const cityGroups = cityId ? [...r.groups.values()].filter(g => g.userData.municipalityId === cityId) : [];
+          let cityCenterPoint: THREE.Vector3 | undefined;
+          if (cityGroups.length > 0) {
+            const cx = cityGroups.reduce((sum, g) => sum + g.position.x, 0) / cityGroups.length;
+            const cz = cityGroups.reduce((sum, g) => sum + g.position.z, 0) / cityGroups.length;
+            cityCenterPoint = new THREE.Vector3(cx, .69, cz);
+          }
+          let p = (id ? r.positions.get(id)?.clone() : undefined) ?? cityCenterPoint ?? cityLabel?.position.clone() ?? (cityPoint ? new THREE.Vector3(cityPoint[0], .69, cityPoint[1]) : undefined);
+          if (cityId && !id) {
+            if (cityGroups.length > 1) {
+              const spanX = Math.max(...cityGroups.map(g => g.position.x)) - Math.min(...cityGroups.map(g => g.position.x)) + (cityGroups[0].userData.size || 0.2) * 3.2;
+              const spanZ = Math.max(...cityGroups.map(g => g.position.z)) - Math.min(...cityGroups.map(g => g.position.z)) + (cityGroups[0].userData.size || 0.2) * 3.2;
+              zoom = THREE.MathUtils.clamp(24 / Math.max(spanX, spanZ, 0.7), 14, 34);
+            } else {
+              zoom = cityIndex ? THREE.MathUtils.clamp(20 / Math.max(cityRadius(cityIndex) * 4, .65), 14, 32) : Math.min(32, Math.max(12, 22 / Math.max(cityLabel?.scale.x ?? 0, .18)));
+            }
+          }
           if (!p && state) { const b = stateBounds(state); p = new THREE.Vector3((b.minX + b.maxX) / 2, .7, (b.minZ + b.maxZ) / 2); zoom = Math.min(24, 35 / Math.max(b.maxX - b.minX, b.maxZ - b.minZ)); }
           else if (p && id) { const size = r.groups.get(id!)?.userData.size ?? 1; zoom = Math.min(1800, 22 / size); }
           if (!p) return;
@@ -163,7 +178,7 @@ export default function WarWorld(props: Props) {
         const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(.16, .55, 5), new THREE.MeshStandardMaterial({ color: '#6a9862', roughness: 1 }), treePositions.length), matrix = new THREE.Matrix4(); treePositions.forEach((p, i) => { matrix.makeTranslation(p.x, p.y, p.z); trees.setMatrixAt(i, matrix); }); scene.add(trees);
         const ray = new THREE.Raycaster(), start = new THREE.Vector2();
         const down = (event: PointerEvent) => start.set(event.clientX, event.clientY);
-        const up = (event: PointerEvent) => { if (event.button !== 0 || Math.abs(start.x - event.clientX) + Math.abs(start.y - event.clientY) > 6) return; const rect = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera); if (municipalityLabels.visible) for (const hit of ray.intersectObjects(municipalityLabels.children.filter(label => label.visible), false)) { if (hit.object.userData.baseId) { latest.current.onBase(hit.object.userData.baseId); return; } if (hit.object.userData.cityId) { latest.current.onMunicipality(hit.object.userData.cityId); return; } } for (const cloud of markerClouds.values()) for (const hit of ray.intersectObject(cloud)) { const id = hit.instanceId === undefined ? undefined : cloud.userData.baseIds[hit.instanceId]; if (id) { latest.current.onBase(id); return; } } for (const hit of ray.intersectObject(bases, true)) { let node: THREE.Object3D | null = hit.object; while (node) { if (node.userData.baseId) { latest.current.onBase(node.userData.baseId); return; } node = node.parent; } } for (const hit of ray.intersectObjects(scene.children, true)) if (hit.object.userData.uf) { latest.current.onState(hit.object.userData.uf); return; } };
+        const up = (event: PointerEvent) => { if (event.button !== 0 || Math.abs(start.x - event.clientX) + Math.abs(start.y - event.clientY) > 6) return; const rect = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera); if (municipalityLabels.visible) for (const hit of ray.intersectObjects(municipalityLabels.children.filter(label => label.visible), false)) { const cityCount = Number(hit.object.userData.cityCount || 0); if (hit.object.userData.cityId && (cityCount > 1 || latest.current.selectedMunicipality !== hit.object.userData.cityId)) { latest.current.onMunicipality(hit.object.userData.cityId); return; } if (hit.object.userData.baseId) { latest.current.onBase(hit.object.userData.baseId); return; } if (hit.object.userData.cityId) { latest.current.onMunicipality(hit.object.userData.cityId); return; } } for (const cloud of markerClouds.values()) for (const hit of ray.intersectObject(cloud)) { const id = hit.instanceId === undefined ? undefined : cloud.userData.baseIds[hit.instanceId]; if (id) { latest.current.onBase(id); return; } } for (const hit of ray.intersectObject(bases, true)) { let node: THREE.Object3D | null = hit.object; while (node) { if (node.userData.baseId) { latest.current.onBase(node.userData.baseId); return; } node = node.parent; } } for (const hit of ray.intersectObjects(scene.children, true)) if (hit.object.userData.uf) { latest.current.onState(hit.object.userData.uf); return; } };
         const wheel = (event: WheelEvent) => {
           event.preventDefault(); event.stopImmediatePropagation(); desiredTarget = null;
           const rect = renderer.domElement.getBoundingClientRect(), delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1);
@@ -231,7 +246,8 @@ export default function WarWorld(props: Props) {
               const size = place.compact && candidate.compact ? candidate.compact : candidate, map = place.compact ? label.userData.compactMap ??= plaqueTexture(label.userData.cityName, '#fffdf4') : label.userData.fullMap;
               if (map && label.material.map !== map) { label.material.map = map; label.material.needsUpdate = true; }
               label.scale.set(size.w * (camera.right - camera.left) / (camera.zoom * rect.width), size.h * (camera.top - camera.bottom) / (camera.zoom * rect.height), 1);
-              label.center.set(.5 - place.dx / size.w, .5 + place.dy / size.h);
+              const dy = place.dy === 0 && place.dx === 0 ? size.h * 0.78 : place.dy;
+              label.center.set(.5 - place.dx / size.w, .5 + dy / size.h);
             }
           }
           layoutDirty = false;
@@ -249,7 +265,9 @@ export default function WarWorld(props: Props) {
             }
             if (!group.visible) continue;
             const projectedWidth = group.userData.size * 1.28 * camera.zoom * container.clientWidth / (camera.right - camera.left);
-            const detail = camera.zoom >= 8 && projectedWidth >= 34 || current.selected === id;
+            const inFocusedMunicipality = Boolean(current.selectedMunicipality && group.userData.municipalityId === current.selectedMunicipality);
+            const inFocusedState = Boolean(current.selectedUF && group.userData.uf === current.selectedUF && camera.zoom >= 2.4);
+            const detail = (camera.zoom >= 3.2 && projectedWidth >= 10) || inFocusedMunicipality || inFocusedState || current.selected === id;
             if (detail && (group.userData.models.length < group.userData.kinds.length || !group.userData.decorations.length)) {
               pendingDetails = true;
               if (detailJobs === 0 || performance.now() - frameStarted < 5) {
@@ -275,10 +293,21 @@ export default function WarWorld(props: Props) {
               const cloud = markerClouds.get(group.userData.team)!;
               const levelBoost = 1 + (Number(group.userData.level || 1) - 1) * 0.08;
               const width = (camera.zoom < 2 ? 13 : 18) * levelBoost * (camera.right-camera.left)/(camera.zoom*container.clientWidth);
-              markerPosition.copy(group.position); markerPosition.y += Math.max(.5, group.userData.size*.8); markerScale.set(width,width,1);
+              markerPosition.copy(group.position);
+              const clusterCenter = group.userData.clusterCenter as [number, number] | undefined;
+              const lotSpacing = Number(group.userData.lotSpacing || 0);
+              if (clusterCenter && Number(group.userData.cityCount || 1) > 1 && lotSpacing > 0 && width * 0.85 > lotSpacing) {
+                const factor = (width * 0.85) / lotSpacing;
+                markerPosition.x = clusterCenter[0] + (group.position.x - clusterCenter[0]) * factor;
+                markerPosition.z = clusterCenter[1] + (group.position.z - clusterCenter[1]) * factor;
+              }
+              markerPosition.y += Math.max(.35, group.userData.size*.8); markerScale.set(width,width,1);
               markerMatrix.compose(markerPosition,camera.quaternion,markerScale); cloud.setMatrixAt(cloud.count++,markerMatrix); cloud.userData.baseIds.push(id);
             }
-            const showName = current.selected === id || group.userData.rankingLeader && !group.userData.municipalityId && camera.zoom > 3.8;
+            const showName = current.selected === id
+              || inFocusedMunicipality
+              || (Boolean(group.userData.municipalityId) && (inFocusedState || camera.zoom >= 5.5) && projectedWidth >= 14)
+              || (group.userData.rankingLeader && !group.userData.municipalityId && camera.zoom > 3.8);
             if (showName && !group.userData.name) {
               const name = plaque(group.userData.labelText, '#ffffff', 1); name.userData.aspect = name.scale.y/name.scale.x; name.position.set(0,group.userData.size*.18,group.userData.size*.86); group.add(name); group.userData.name = name; dirty = true;
             }
@@ -334,10 +363,10 @@ export default function WarWorld(props: Props) {
     const r = runtime.current; if (!r || !ready) return;
     for (const child of [...r.bases.children]) { r.bases.remove(child); disposeTree(child); } r.positions.clear(); r.groups.clear();
     const leaders = mapRankingLeaders(latest.current.bases);
-    const addBase = (base: Base, lot: { x: number; z: number; size: number; spacing: number }) => {
+    const addBase = (base: Base, lot: { x: number; z: number; size: number; spacing: number }, cityMeta?: { count: number; center: [number, number] }) => {
       const tier = armyTier(base);
       const size = Math.min(lot.size * (0.88 + (tier.level - 1) * 0.024), 2.5);
-      const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, municipalityId: base.municipalityId, baseLotSize: lot.size, size, level: tier.level, team: base.team, models: [], rankingLeader: leaders.states.get(base.uf)?.id === base.id, kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
+      const group = new THREE.Group(); group.position.set(lot.x, .68, lot.z); group.userData = { baseId: base.id, uf: base.uf, municipalityId: base.municipalityId, baseLotSize: lot.size, lotSpacing: lot.spacing, cityCount: cityMeta?.count ?? 1, clusterCenter: cityMeta?.center, size, level: tier.level, team: base.team, models: [], rankingLeader: leaders.states.get(base.uf)?.id === base.id, kinds: CATALOG.filter(u => base.inventory[u.kind] > 0) }; r.positions.set(base.id, group.position.clone());
       group.userData.decorations = []; group.userData.labelText = `@${base.username}`;
       r.bases.add(group); r.groups.set(base.id, group);
     };
@@ -348,8 +377,11 @@ export default function WarWorld(props: Props) {
         for (const base of members) if (base.municipalityId) { const residents = byCity.get(base.municipalityId) || []; residents.push(base); byCity.set(base.municipalityId, residents); }
         for (const [cityId, residents] of byCity) {
           const city = props.municipalityIndex.find(item => item.id === cityId); if (!city) continue;
-          const ordered = [...residents].sort((x, y) => x.joinedAt.localeCompare(y.joinedAt) || x.id.localeCompare(y.id)), lots = cityLots(project(city.label[0], city.label[1]), cityRadius(city), ordered.length);
-          ordered.forEach((base, i) => addBase(base, lots[i]));
+          const ordered = [...residents].sort((x, y) => x.joinedAt.localeCompare(y.joinedAt) || x.id.localeCompare(y.id));
+          const lots = boardCityLots(project(city.label[0], city.label[1]), cityRadius(city), ordered.length, state);
+          const cx = lots.reduce((s, l) => s + l.x, 0) / Math.max(1, lots.length);
+          const cz = lots.reduce((s, l) => s + l.z, 0) / Math.max(1, lots.length);
+          ordered.forEach((base, i) => addBase(base, lots[i], { count: ordered.length, center: [cx, cz] }));
         }
         const unassigned = members.filter(base => !base.municipalityId || !props.municipalityIndex.some(city => city.id === base.municipalityId));
         if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
@@ -383,8 +415,9 @@ export default function WarWorld(props: Props) {
     for (const cityId of ids) {
       const city = props.municipalityIndex.find(item => item.id === cityId); if (!city) continue;
       const leader = leaders.cities.get(cityId), [x,z] = project(city.label[0], city.label[1]);
+      const cityCount = props.bases.filter(b => b.municipalityId === cityId).length;
       const label = plaque(city.name, '#fffdf4', .4, leader ? `@${leader.username}` : undefined);
-      label.position.set(x, .69, z); label.userData.cityId = city.id; label.userData.baseId = leader?.id; label.userData.cityName = city.name; label.userData.points = leader ? earnedPoints(leader) : 0; label.userData.aspect = label.scale.y / label.scale.x;
+      label.position.set(x, .69, z); label.userData.cityId = city.id; label.userData.baseId = leader?.id; label.userData.cityCount = cityCount; label.userData.cityName = city.name; label.userData.points = leader ? earnedPoints(leader) : 0; label.userData.aspect = label.scale.y / label.scale.x;
       if (leader) { label.userData.fullMap = label.material.map; label.userData.compactSize = plaqueSize(city.name); }
       r.municipalityLabels.add(label);
     }

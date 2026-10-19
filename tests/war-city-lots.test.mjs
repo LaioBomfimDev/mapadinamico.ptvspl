@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { CITY_STABLE_SLOTS, cityLots, cityRadius, insideState, project, projectedState } from '../lib/war/geography.ts';
+import { boardCityLots, CITY_STABLE_SLOTS, cityLots, cityRadius, insideState, project, projectedState } from '../lib/war/geography.ts';
 
 const read = async name => JSON.parse(await readFile(new URL(`../public/war-assets/${name}`, import.meta.url), 'utf8'));
 const index = await read('bahia-municipality-index.json'), shapes = new Map((await read('bahia-municipalities.json')).map(city => [city.id, city]));
+const states = (await read('brazil-states.json')).map(projectedState);
+const bahia = states.find(s => s.uf === 'BA');
 const corners = lot => { const hx = lot.size * .64, hz = lot.size * .59; return [[lot.x - hx, lot.z - hz], [lot.x + hx, lot.z - hz], [lot.x - hx, lot.z + hz], [lot.x + hx, lot.z + hz], [lot.x, lot.z]]; };
 const overlap = (a, b) => Math.abs(a.x - b.x) < (a.size + b.size) * .64 && Math.abs(a.z - b.z) < (a.size + b.size) * .59;
 
@@ -33,4 +35,17 @@ test('camps never overlap and each base keeps its place while the city grows', (
   assert.deepEqual(cityLots(center, radius, 0), []);
   assert.deepEqual(cityLots([NaN, 0], radius, 2), []);
   assert.ok(cityRadius({ labelSize: .3 }) > 0, 'índice antigo sem raio ainda funciona');
+});
+
+test('boardCityLots gives small cities like Catu readable 3D size and spacing without overlapping or leaving Bahia', () => {
+  const catu = index.find(city => city.name === 'Catu'), center = project(catu.label[0], catu.label[1]), radius = cityRadius(catu);
+  const rawLots = cityLots(center, radius, 4);
+  const boardLots = boardCityLots(center, radius, 4, bahia);
+  assert.equal(boardLots.length, 4);
+  assert.ok(boardLots[0].size > rawLots[0].size * 8, 'bases em Catu ficam muito maiores e visíveis no tabuleiro 3D');
+  assert.ok(boardLots[0].spacing > rawLots[0].spacing * 8, 'espaçamento entre as 4 bases de Catu permite ver cada quartel separado');
+  for (let i = 0; i < boardLots.length; i++) {
+    for (const point of corners(boardLots[i])) assert.ok(insideState(point, bahia), `base ${i} dentro da Bahia`);
+    for (let j = i + 1; j < boardLots.length; j++) assert.ok(!overlap(boardLots[i], boardLots[j]), `bases ${i} e ${j} não se sobrepõem`);
+  }
 });
