@@ -5,35 +5,34 @@ import { LIVE_CHAT, formatAudioTime, liveAuthor, liveMessageFrom, nextSpawnAt, p
 
 const seeded = (seed = 7) => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 
-test('simulated audience starts near 40, alternates 2-minute high/low plateaus and stays around the 40 average', () => {
-  assert.equal(LIVE_AUDIENCE.average, 40);
+test('simulated audience starts and changes between 1 and 5 every 5 seconds', () => {
+  assert.equal(LIVE_AUDIENCE.average, 3);
   assert.equal(LIVE_AUDIENCE.intervalMs, 5000);
-  assert.equal(LIVE_AUDIENCE.waveMs, 120_000);
-  assert.equal(LIVE_AUDIENCE.ticksPerWave, 24);
+  assert.equal(LIVE_AUDIENCE.min, 1);
+  assert.equal(LIVE_AUDIENCE.max, 5);
   const random = seeded(42);
   for (let i = 0; i < 200; i++) {
     const start = initialViewers(random);
-    assert.ok(start >= 34 && start <= 46, `start=${start}`);
+    assert.ok(Number.isInteger(start) && start >= 1 && start <= 5, `start=${start}`);
   }
-  let viewers = initialViewers(random), sum = 0;
-  const waveMeans = [];
-  for (let w = 0; w < 120; w++) {
-    let waveSum = 0;
-    for (let t = 0; t < LIVE_AUDIENCE.ticksPerWave; t++) {
-      const next = nextViewers(viewers, random), limit = Math.max(2, Math.floor(viewers * LIVE_AUDIENCE.maxStepRatio));
-      assert.ok(Math.abs(next - viewers) <= limit, `${viewers} -> ${next}`);
-      assert.ok(next >= LIVE_AUDIENCE.min && next <= LIVE_AUDIENCE.max);
-      viewers = next;
-      sum += next;
-      waveSum += next;
+  let viewers = initialViewers(random);
+  const seen = new Set();
+  for (let tick = 0; tick < 3000; tick++) {
+    const next = nextViewers(viewers, random);
+    assert.ok(Number.isInteger(next) && next >= 1 && next <= 5);
+    assert.notEqual(next, viewers);
+    seen.add(next);
+    viewers = next;
+  }
+  assert.deepEqual([...seen].sort(), [1, 2, 3, 4, 5]);
+  assert.equal(initialViewers(() => 0), 1);
+  assert.equal(initialViewers(() => 0.999999), 5);
+  for (const current of [Number.NaN, Infinity, -Infinity, -100, 100, 2.6]) {
+    for (const roll of [0, 0.999999]) {
+      const next = nextViewers(current, () => roll);
+      assert.ok(Number.isInteger(next) && next >= 1 && next <= 5);
     }
-    waveMeans.push(waveSum / LIVE_AUDIENCE.ticksPerWave);
   }
-  const totalTicks = 120 * LIVE_AUDIENCE.ticksPerWave;
-  assert.ok(Math.abs(sum / totalTicks - LIVE_AUDIENCE.average) < 4, `mean=${sum / totalTicks}`);
-  assert.ok( waveMeans.some(m => m >= 44), 'deve ter ondas de 2 min que sobem e mantêm patamar acima de 44' );
-  assert.ok( waveMeans.some(m => m <= 35), 'deve ter ondas de 2 min que descem e mantêm patamar abaixo de 35' );
-  assert.ok(nextViewers(Number.NaN, random) >= LIVE_AUDIENCE.min);
   const clockStr = liveClock(Date.UTC(2026, 9, 18, 1, 5, 9), 'America/Sao_Paulo');
   assert.match(clockStr, /^\d{2}:\d{2}:\d{2}$/);
   assert.equal(clockStr, '22:05:09');

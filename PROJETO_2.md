@@ -116,3 +116,7 @@ O usuário reconfirmou a vitória por força militar total após esclarecer a co
 
 Entregue o protótipo local com dados fictícios, mapa vazio opcional, arsenal e batalha acelerada. Agora o usuário pode avaliar arte, ritmo e valores antes da integração real. A próxima etapa de produção requer backend autoritativo, acesso pessoal à base, banco, conta/post Instagram e agendamento compartilhado; não foi declarada concluída por esta prévia.
 
+## Atualização de 19/10/2026 — publicação solicitada
+
+Pedido confirmado: retirar o acesso “Cozinha 3D” do rodapé do mapa e usar contador simulado de 1 a 5 pessoas, com mudança a cada 5 segundos. Implementado em `app/war-app.tsx` e `lib/war/live-audience.ts`. A página e os arquivos da cozinha foram preservados; apenas o atalho mostrado na imagem foi removido. A audiência anterior de média 40 e ondas de 2 minutos está no histórico Git (`786882a`) para retomada posterior, sem aumento automático agendado. Validação: 5 testes de `war-live.test.mjs` aprovados; build Next de produção concluída com TypeScript e 13 páginas estáticas. Publicação remota pendente de confirmação no momento deste registro.
+

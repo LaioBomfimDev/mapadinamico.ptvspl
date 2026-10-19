@@ -1,5 +1,9 @@
 # Ao vivo: logo 13/22, contador e chat — 17/10/2026
 
+## Decisão atual — 19/10/2026
+
+Pedido direto do usuário: começar com **1 a 5 pessoas assistindo**, mudando a cada **5 segundos**, e retomar o comportamento mais alto futuramente. O contador continua simulado; o valor inicial do HTML é 3 e o cliente sorteia entre 1 e 5. Cada atualização escolhe um valor diferente do anterior. A implementação anterior (média 40, ondas de 2 minutos, limites 18–66) fica preservada no commit `786882a42a3e85ec45bb4e1eae7266bc4ac09023`; não está ativa nesta fase. O relógio de Brasília permanece igual. Os registros abaixo descrevem entregas anteriores.
+
 ## Pedido do usuário (decisão confirmada)
 
 - Trocar a marca "Brasil em batalha" pela logo 13/22 enviada pelo usuário e mudar o título para **"Você é 13 ou 22?"**.
