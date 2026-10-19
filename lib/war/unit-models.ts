@@ -358,7 +358,7 @@ export function createUnit(kind: UnitKind, team: Team = 'red', options: { badge?
   if (options.badge !== false) {
     const top = new THREE.Box3().setFromObject(root).max.y;
     const badge = createTeamBadge(team);
-    badge.position.set(0, top + 0.51, 0);
+    badge.position.set(0, top + 0.58, 0);
     root.add(badge);
   }
   return root;

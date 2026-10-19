@@ -1,7 +1,21 @@
 export type Point = [number, number];
 export type StateGeometry = { id: string; uf: string; name: string; polygons: Point[][][] };
 /** radius: graus do ponto do nome até a divisa mais próxima; o círculo inteiro fica dentro da cidade. */
-export type MunicipalityIndexItem = { id: string; name: string; label: Point; labelSize: number; radius?: number };
+export type MunicipalityIndexItem = { id: string; name: string; uf?: string; label: Point; labelSize: number; radius?: number };
+
+export const EXTRA_MUNICIPALITIES: MunicipalityIndexItem[] = [
+  { id: '2807402', name: 'Tobias Barreto', uf: 'SE', label: [-37.92, -11.12], labelSize: 0.22, radius: 0.085 },
+];
+
+export function withExtraMunicipalities(items: MunicipalityIndexItem[]): MunicipalityIndexItem[] {
+  const seen = new Set(items.map(item => item.id));
+  const merged = [...items];
+  for (const extra of EXTRA_MUNICIPALITIES) {
+    if (!seen.has(extra.id)) merged.push(extra);
+  }
+  return merged;
+}
+
 export const project = (lng: number, lat: number): Point => [(lng + 54) * 1.5, -(lat + 14) * 1.5];
 export function inRing(point: Point, ring: Point[]) {
   let inside = false;
@@ -37,8 +51,9 @@ export function cityLots(center: Point, radius: number, count: number): { x: num
 export const cityRadius = (city: Pick<MunicipalityIndexItem, 'radius' | 'labelSize'>) => (city.radius && city.radius > 0 ? city.radius : Math.max(.01, city.labelSize / 3)) * 1.5;
 
 const BOARD_CITY_SHIFTS: readonly Point[] = [
-  [0, 0], [-0.15, 0], [-0.28, 0], [-0.18, -0.12], [-0.18, 0.12],
-  [0, -0.18], [0, 0.18], [-0.42, 0], [-0.3, -0.2], [-0.3, 0.2],
+  [0, 0], [-0.15, 0], [0.15, 0], [-0.28, 0], [0.28, 0],
+  [-0.18, -0.12], [0.18, -0.12], [-0.18, 0.12], [0.18, 0.12],
+  [0, -0.18], [0, 0.18], [-0.42, 0], [0.42, 0], [-0.3, -0.2], [0.3, -0.2], [-0.3, 0.2], [0.3, 0.2],
 ];
 
 function lotCornersInsideState(lot: { x: number; z: number; size: number }, state: StateGeometry) {

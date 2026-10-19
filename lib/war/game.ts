@@ -1,4 +1,5 @@
 import { awardPoints, ledgerOf, SOCIAL_RULES, validLedger, type PointLedger } from './points.ts';
+import { EXTRA_MUNICIPALITIES } from './geography.ts';
 // Experimental values for the local prototype, not approved campaign rules.
 export type Team = 'red' | 'blue';
 export type UnitKind = 'infantry' | 'tank' | 'artillery' | 'drone' | 'aircraft';
@@ -65,7 +66,7 @@ export function bahiaCityForUsername(username: string, municipalities: readonly 
   if (municipalities.length > 0) return municipalities[hash % municipalities.length].id;
   return '2927408';
 }
-export function parseComment(text: string, municipalities: readonly { id: string; name: string }[] = []) {
+export function parseComment(text: string, municipalities: readonly { id: string; name: string; uf?: string }[] = []) {
   const trimmed = text.trim();
   const teamOnly = trimmed.match(/^@([a-z\d._]{1,30})\s+(13|22|pt|pl)$/i);
   if (teamOnly) {
@@ -77,18 +78,23 @@ export function parseComment(text: string, municipalities: readonly { id: string
   const match = trimmed.match(/^@([a-z\d._]{1,30})\s+(.+?)\s+(13|22|pt|pl)$/i);
   if (!match) throw Error('Use @seunome Catu BA 13 na Bahia, @seunome SP 22 nos outros estados ou @seunome 13 / 22.');
   const location = normalize(match[2]);
-  const city = municipalities.find(item => {
+  const allCities: readonly { id: string; name: string; uf?: string }[] = [
+    ...municipalities,
+    ...EXTRA_MUNICIPALITIES.filter(extra => !municipalities.some(m => m.id === extra.id)),
+  ];
+  const city = allCities.find(item => {
     const name = normalize(item.name);
-    return location === `${name} ba` || location === `ba ${name}` || location === name;
+    const itemUf = normalize(item.uf ?? 'BA');
+    return location === `${name} ${itemUf}` || location === `${itemUf} ${name}` || location === name;
   });
-  const state = city ? STATES.find(s => s.uf === 'BA') : STATES.find(s => normalize(s.uf) === location || normalize(s.name) === location);
+  const state = city ? STATES.find(s => s.uf === (city.uf ?? 'BA')) : STATES.find(s => normalize(s.uf) === location || normalize(s.name) === location);
   if (!state) throw Error('Local não reconhecido. Na Bahia, informe também o município, por exemplo: @seunome Catu BA 13.');
   return { username: match[1].toLowerCase(), uf: state.uf, municipalityId: city?.id, team: /^(13|pt)$/i.test(match[3]) ? 'red' as const : 'blue' as const, locationExplicit: true };
 }
 export function parseInstagramComment(
   rawText: string,
   rawUsername: string,
-  municipalities: readonly { id: string; name: string }[] = [],
+  municipalities: readonly { id: string; name: string; uf?: string }[] = [],
   options: { allowTeamFallback?: boolean } = {},
 ) {
   const cleanUser = rawUsername.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z\d._]/g, '').slice(0, 30);
@@ -118,13 +124,18 @@ export function parseInstagramComment(
 
   const locationWords = norm.replace(/\b(13|22|pt|pl|lula|bolsonaro|mito|vermelho|vermelha|azul|time|sou|de|do|da|em|no|na|bora|vai|aqui|e)\b/g, ' ').replace(/\s+/g, ' ').trim();
   if (locationWords) {
-    const sortedCities = [...municipalities].sort((a, b) => b.name.length - a.name.length);
+    const allCities: readonly { id: string; name: string; uf?: string }[] = [
+      ...municipalities,
+      ...EXTRA_MUNICIPALITIES.filter(extra => !municipalities.some(m => m.id === extra.id)),
+    ];
+    const sortedCities = [...allCities].sort((a, b) => b.name.length - a.name.length);
     const matchedCity = sortedCities.find(item => {
       const cName = normalize(item.name);
-      return cName.length >= 3 && (locationWords === cName || locationWords === `${cName} ba` || locationWords === `ba ${cName}` || new RegExp(`(?:^|\\s)${cName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|$)`).test(locationWords));
+      const itemUf = normalize(item.uf ?? 'BA');
+      return cName.length >= 3 && (locationWords === cName || locationWords === `${cName} ${itemUf}` || locationWords === `${itemUf} ${cName}` || new RegExp(`(?:^|\\s)${cName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|$)`).test(locationWords));
     });
     if (matchedCity) {
-      return { username: cleanUser, uf: 'BA', municipalityId: matchedCity.id, team, locationExplicit: true };
+      return { username: cleanUser, uf: matchedCity.uf ?? 'BA', municipalityId: matchedCity.id, team, locationExplicit: true };
     }
     const sortedStates = [...STATES].sort((a, b) => b.name.length - a.name.length);
     const matchedState = sortedStates.find(s => {
@@ -229,7 +240,10 @@ export function validateSaved(value: unknown): GameState | null {
   if (game.version !== 1 || !Array.isArray(game.bases) || game.bases.length > 1000 || !Array.isArray(game.receipts) || game.receipts.length > 5000 || !Array.isArray(game.history) || game.history.length > 10) return null;
   const ids = new Set(), names = new Set();
   for (const b of game.bases) {
-    if (!b || typeof b.id !== 'string' || b.id.length > 80 || typeof b.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(b.username) || ids.has(b.id) || names.has(b.username) || !STATES.some(s => s.uf === b.uf) || (b.municipalityId !== undefined && (b.uf !== 'BA' || !/^29\d{5}$/.test(b.municipalityId))) || !['red', 'blue'].includes(b.team) || !Number.isSafeInteger(b.credits) || b.credits < 0 || b.credits > 10000000 || !Number.isInteger(b.rewardedComments) || b.rewardedComments < 0 || b.rewardedComments > RULES.dailyCommentCap || typeof b.commentDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.commentDay) || typeof b.joinedAt !== 'string' || !Number.isFinite(Date.parse(b.joinedAt)) || !b.inventory || !CATALOG.every(u => Number.isInteger(b.inventory[u.kind]) && b.inventory[u.kind] >= 0 && b.inventory[u.kind] <= 10000)) return null;
+    const validCity = b.municipalityId === undefined
+      || (b.uf === 'BA' && /^29\d{5}$/.test(b.municipalityId))
+      || EXTRA_MUNICIPALITIES.some(m => m.id === b.municipalityId && m.uf === b.uf);
+    if (!b || typeof b.id !== 'string' || b.id.length > 80 || typeof b.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(b.username) || ids.has(b.id) || names.has(b.username) || !STATES.some(s => s.uf === b.uf) || !validCity || !['red', 'blue'].includes(b.team) || !Number.isSafeInteger(b.credits) || b.credits < 0 || b.credits > 10000000 || !Number.isInteger(b.rewardedComments) || b.rewardedComments < 0 || b.rewardedComments > RULES.dailyCommentCap || typeof b.commentDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.commentDay) || typeof b.joinedAt !== 'string' || !Number.isFinite(Date.parse(b.joinedAt)) || !b.inventory || !CATALOG.every(u => Number.isInteger(b.inventory[u.kind]) && b.inventory[u.kind] >= 0 && b.inventory[u.kind] <= 10000)) return null;
     ids.add(b.id); names.add(b.username);
     if (b.progress !== undefined && !validLedger(b.progress)) return null;
   }

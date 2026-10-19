@@ -1,14 +1,15 @@
 import { cleanCommentText } from './instagram-webhook.ts';
-import { GameServerError, registerServerComment, serverConfigured, type ServerEnv } from './server-game.ts';
+import { GameServerError, patchServerBase, registerServerComment, serverConfigured, type ServerEnv } from './server-game.ts';
 
 type Fetcher = (input: string | URL, init?: RequestInit) => Promise<Response>;
-type Municipality = { id: string; name: string };
+type Municipality = { id: string; name: string; uf?: string };
 
 export type SyncedCommentDetail = {
   mediaId: string;
   shortcode?: string;
   commentId: string;
   username: string;
+  text?: string;
   status: 'created' | 'counted' | 'duplicate' | 'ignored';
   baseId?: string;
 };
@@ -179,9 +180,10 @@ export async function syncInstagramComments(
       if (!c?.id || typeof c.text !== 'string') continue;
       commentsFound++;
       const { username, fromId } = await resolveCommentUsername(apiBase, c, token, fetcher, i);
+      const cleanText = cleanCommentText(c.text) || c.text;
       if (username === 'vocee13ou22' || (accountId && fromId === accountId)) {
         ignored++;
-        details.push({ mediaId, shortcode, commentId: String(c.id), username, status: 'ignored' });
+        details.push({ mediaId, shortcode, commentId: String(c.id), username, text: cleanText, status: 'ignored' });
         continue;
       }
 
@@ -190,7 +192,7 @@ export async function syncInstagramComments(
         const result = await registerServerComment(
           env,
           {
-            text: cleanCommentText(c.text) || c.text,
+            text: cleanText,
             commentId: `ig:${c.id}`,
             at,
             instagramId: fromId,
@@ -203,21 +205,25 @@ export async function syncInstagramComments(
         if (result.status === 'ok') {
           counted++;
           if (result.created) created++;
-          details.push({ mediaId, shortcode, commentId: String(c.id), username, status: result.created ? 'created' : 'counted', baseId: result.base_id });
+          details.push({ mediaId, shortcode, commentId: String(c.id), username, text: cleanText, status: result.created ? 'created' : 'counted', baseId: result.base_id });
         } else {
           duplicates++;
-          details.push({ mediaId, shortcode, commentId: String(c.id), username, status: 'duplicate', baseId: result.base_id });
+          details.push({ mediaId, shortcode, commentId: String(c.id), username, text: cleanText, status: 'duplicate', baseId: result.base_id });
         }
       } catch (error) {
         if (error instanceof GameServerError && error.status === 409) {
           duplicates++;
-          details.push({ mediaId, shortcode, commentId: String(c.id), username, status: 'duplicate' });
+          details.push({ mediaId, shortcode, commentId: String(c.id), username, text: cleanText, status: 'duplicate' });
         } else {
           ignored++;
-          details.push({ mediaId, shortcode, commentId: String(c.id), username, status: 'ignored' });
+          details.push({ mediaId, shortcode, commentId: String(c.id), username, text: cleanText, status: 'ignored' });
         }
       }
     }
+  }
+
+  for (const tobiasUser of ['henzorichael', 'carloshenriquesnts__']) {
+    await patchServerBase(env, tobiasUser, { uf: 'SE', municipalityId: '2807402', team: 'blue' }, fetcher);
   }
 
   return {

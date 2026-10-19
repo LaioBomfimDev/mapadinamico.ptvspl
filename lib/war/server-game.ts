@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { CATALOG, RULES, STATES, parseComment, parseInstagramComment, type Base, type BattleRecord, type UnitKind } from './game.ts';
+import { CATALOG, RULES, STATES, parseComment, parseInstagramComment, type Base, type BattleRecord, type Team, type UnitKind } from './game.ts';
+import { EXTRA_MUNICIPALITIES } from './geography.ts';
 import { validLedger, type PointEntry } from './points.ts';
 
 /**
@@ -8,7 +9,7 @@ import { validLedger, type PointEntry } from './points.ts';
  */
 export type ServerEnv = { SUPABASE_URL?: string; SUPABASE_SECRET_KEY?: string; MAP_ADMIN_TOKEN?: string; [key: string]: string | undefined };
 type Fetcher = (input: string | URL, init?: RequestInit) => Promise<Response>;
-type Municipality = { id: string; name: string };
+type Municipality = { id: string; name: string; uf?: string };
 
 export class GameServerError extends Error {
   status: number;
@@ -58,7 +59,10 @@ export function baseFromRow(row: unknown): Base | null {
   const credits = int(r.credits, 10000000), rewarded = int(r.rewarded_comments, 1000), joinedAt = iso(r.joined_at);
   if (typeof r.id !== 'string' || typeof r.username !== 'string' || !/^[a-z\d._]{1,30}$/.test(r.username) || !STATES.some(state => state.uf === r.uf) || (r.team !== 'red' && r.team !== 'blue')) return null;
   if (Object.values(inventory).some(value => value === null) || credits === null || rewarded === null || !joinedAt || typeof r.comment_day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.comment_day)) return null;
-  const municipalityId = typeof r.municipality_id === 'string' && r.uf === 'BA' && /^29\d{5}$/.test(r.municipality_id) ? r.municipality_id : undefined;
+  const extraCity = r.uf !== 'BA' ? EXTRA_MUNICIPALITIES.find(m => m.uf === r.uf) : undefined;
+  const municipalityId = typeof r.municipality_id === 'string' && r.uf === 'BA' && /^29\d{5}$/.test(r.municipality_id)
+    ? r.municipality_id
+    : extraCity?.id;
   const entries = (Array.isArray(r.entries) ? r.entries : []).map(entry => {
     const e = entry as Record<string, unknown>, at = iso(e?.at);
     return { key: e?.key, kind: e?.kind, points: e?.points, at, ...(typeof e?.subject === 'string' ? { subject: e.subject } : {}), ...(typeof e?.post === 'string' ? { post: e.post } : {}) } as PointEntry;
@@ -83,6 +87,23 @@ export async function loadGameState(env: ServerEnv, fetcher?: Fetcher) {
   };
 }
 
+export async function patchServerBase(
+  env: ServerEnv,
+  username: string,
+  patch: { uf: string; municipalityId?: string | null; team: Team },
+  fetcher: Fetcher = fetch,
+) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return false;
+  const dbMunicipalityId = patch.uf === 'BA' ? (patch.municipalityId ?? null) : null;
+  const res = await fetcher(new URL(`/rest/v1/bases?username=eq.${encodeURIComponent(username.toLowerCase())}`, env.SUPABASE_URL), {
+    method: 'PATCH',
+    headers: { apikey: env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uf: patch.uf, municipality_id: dbMunicipalityId, team: patch.team }),
+    cache: 'no-store',
+  }).catch(() => null);
+  return !!res?.ok;
+}
+
 /**
  * Inscrição por comentário. Quando vier do Instagram, aceita tanto comentários com cidade/estado
  * ("Catu BA 13", "SP 22") quanto comentários só com o time ("13", "22", "PT", "PL"), espalhando
@@ -100,30 +121,30 @@ export async function registerServerComment(
   if (parsed.uf === 'BA' && !parsed.municipalityId) throw new GameServerError('Na Bahia, informe a cidade oficial no comentário, por exemplo: Catu BA 13.', 400);
   if (!Number.isFinite(input.at) || !input.commentId.trim() || input.commentId.length > 200) throw new GameServerError('Comentário sem identificação válida.', 400);
   if (input.instagramId !== undefined && !/^\d{1,30}$/.test(input.instagramId)) throw new GameServerError('ID do Instagram inválido.', 400);
+  const dbMunicipalityId = parsed.uf === 'BA' ? (parsed.municipalityId ?? null) : null;
   const rpcArgs = {
-    p_comment_id: input.commentId, p_username: parsed.username, p_uf: parsed.uf, p_municipality_id: parsed.municipalityId ?? null, p_team: parsed.team,
+    p_comment_id: input.commentId, p_username: parsed.username, p_uf: parsed.uf, p_municipality_id: dbMunicipalityId, p_team: parsed.team,
     p_at: new Date(input.at).toISOString(), p_instagram_id: input.instagramId ?? null, p_points: RULES.pointsPerComment, p_daily_cap: RULES.dailyCommentCap,
   };
   try {
-    return await callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', rpcArgs, fetcher);
+    const result = await callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', rpcArgs, fetcher);
+    if (result.status === 'duplicate' && input.instagramUsername && parsed.locationExplicit) {
+      await patchServerBase(env, parsed.username, { uf: parsed.uf, municipalityId: dbMunicipalityId, team: parsed.team }, fetcher);
+    }
+    return result;
   } catch (error) {
     if (input.instagramUsername && error instanceof GameServerError && error.message === MESSAGES.base_ja_definida[0]) {
       const current = await loadGameState(env, fetcher).catch(() => null);
       const existing = current?.bases.find(b => b.username === parsed.username);
       if (existing) {
-        if (parsed.locationExplicit && env.SUPABASE_URL && env.SUPABASE_SECRET_KEY) {
-          await fetcher(new URL(`/rest/v1/bases?id=eq.${encodeURIComponent(existing.id)}`, env.SUPABASE_URL), {
-            method: 'PATCH',
-            headers: { apikey: env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uf: parsed.uf, municipality_id: parsed.municipalityId ?? null, team: parsed.team }),
-            cache: 'no-store',
-          }).catch(() => null);
+        if (parsed.locationExplicit) {
+          await patchServerBase(env, parsed.username, { uf: parsed.uf, municipalityId: dbMunicipalityId, team: parsed.team }, fetcher);
           return callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', rpcArgs, fetcher);
         }
         return callGameFunction<{ status: 'ok' | 'duplicate'; base_id?: string; created?: boolean; awarded?: boolean }>(env, 'game_register_comment', {
           ...rpcArgs,
           p_uf: existing.uf,
-          p_municipality_id: existing.municipalityId ?? null,
+          p_municipality_id: existing.uf === 'BA' ? (existing.municipalityId ?? null) : null,
           p_team: existing.team,
         }, fetcher);
       }

@@ -84,7 +84,7 @@ test('team badges are above the unit, use distinct symbols and can be omitted fo
     const badge = unit.getObjectByName('team-badge');
     assert(badge?.isGroup && badge.userData.teamBadge === true);
     assert.equal(badge.userData.team,team);
-    assert.equal(badge.userData.symbol,team === 'red' ? 'gold-star' : 'toy-blaster');
+    assert.equal(badge.userData.symbol,team === 'red' ? '13' : '22');
     const badgeBounds = new THREE.Box3().setFromObject(badge), bareBounds = new THREE.Box3().setFromObject(bare);
     assert(badgeBounds.min.y > bareBounds.max.y+0.1, 'icon floats clear of head');
     assert.equal(bare.getObjectByName('team-badge'),undefined);

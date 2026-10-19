@@ -26,12 +26,18 @@ function disposeTree(object: THREE.Object3D) {
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
 }
 function markerMaterial(team: Team) {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 96; const c = canvas.getContext('2d')!;
-  c.fillStyle = '#fff9e3'; c.strokeStyle = '#253b44'; c.lineWidth = 7; c.beginPath(); c.arc(48, 48, 40, 0, Math.PI * 2); c.fill(); c.stroke();
-  c.beginPath(); c.lineWidth = 3;
-  if (team === 'red') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 12 : 28; if (!i) c.moveTo(48 + Math.cos(a)*r,48 + Math.sin(a)*r); else c.lineTo(48 + Math.cos(a)*r,48 + Math.sin(a)*r); } c.fillStyle = '#f5ca53'; }
-  else { [[20,31],[71,31],[75,37],[75,44],[49,44],[52,64],[41,69],[34,46],[22,46]].forEach(([x,y],i) => i ? c.lineTo(x,y) : c.moveTo(x,y)); c.fillStyle = '#599bd8'; }
-  c.closePath(); c.fill(); c.stroke(); const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 112; const c = canvas.getContext('2d')!;
+  c.fillStyle = team === 'red' ? '#dc3e35' : '#266ec4';
+  c.strokeStyle = '#17222b'; c.lineWidth = 8;
+  c.beginPath(); c.arc(56, 56, 46, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.strokeStyle = team === 'red' ? '#ff8b80' : '#7ab8ff'; c.lineWidth = 3.5;
+  c.beginPath(); c.arc(56, 56, 39, 0, Math.PI * 2); c.stroke();
+  c.font = '900 46px Arial, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+  const label = team === 'red' ? '13' : '22';
+  c.strokeStyle = '#141d26'; c.lineWidth = 7; c.strokeText(label, 56, 58);
+  c.fillStyle = '#fffdf4'; c.fillText(label, 56, 58);
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshBasicMaterial({ map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false, side:THREE.DoubleSide });
 }
 let measureContext: CanvasRenderingContext2D | null = null;
@@ -292,7 +298,7 @@ export default function WarWorld(props: Props) {
             if (!detail || !group.userData.decorations.length) {
               const cloud = markerClouds.get(group.userData.team)!;
               const levelBoost = 1 + (Number(group.userData.level || 1) - 1) * 0.08;
-              const width = (camera.zoom < 2 ? 13 : 18) * levelBoost * (camera.right-camera.left)/(camera.zoom*container.clientWidth);
+              const width = (camera.zoom < 2 ? 18 : 24) * levelBoost * (camera.right-camera.left)/(camera.zoom*container.clientWidth);
               markerPosition.copy(group.position);
               const clusterCenter = group.userData.clusterCenter as [number, number] | undefined;
               const lotSpacing = Number(group.userData.lotSpacing || 0);
@@ -372,22 +378,18 @@ export default function WarWorld(props: Props) {
     };
     for (const state of r.geographies) {
       const members = props.bases.filter(b => b.uf === state.uf); if (!members.length) continue;
-      if (state.uf === 'BA') {
-        const byCity = new Map<string, Base[]>();
-        for (const base of members) if (base.municipalityId) { const residents = byCity.get(base.municipalityId) || []; residents.push(base); byCity.set(base.municipalityId, residents); }
-        for (const [cityId, residents] of byCity) {
-          const city = props.municipalityIndex.find(item => item.id === cityId); if (!city) continue;
-          const ordered = [...residents].sort((x, y) => x.joinedAt.localeCompare(y.joinedAt) || x.id.localeCompare(y.id));
-          const lots = boardCityLots(project(city.label[0], city.label[1]), cityRadius(city), ordered.length, state);
-          const cx = lots.reduce((s, l) => s + l.x, 0) / Math.max(1, lots.length);
-          const cz = lots.reduce((s, l) => s + l.z, 0) / Math.max(1, lots.length);
-          ordered.forEach((base, i) => addBase(base, lots[i], { count: ordered.length, center: [cx, cz] }));
-        }
-        const unassigned = members.filter(base => !base.municipalityId || !props.municipalityIndex.some(city => city.id === base.municipalityId));
-        if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
-      } else {
-        const lots = baseLots(state, members.length); members.forEach((base, i) => addBase(base, lots[i]));
+      const byCity = new Map<string, Base[]>();
+      for (const base of members) if (base.municipalityId) { const residents = byCity.get(base.municipalityId) || []; residents.push(base); byCity.set(base.municipalityId, residents); }
+      for (const [cityId, residents] of byCity) {
+        const city = props.municipalityIndex.find(item => item.id === cityId); if (!city) continue;
+        const ordered = [...residents].sort((x, y) => x.joinedAt.localeCompare(y.joinedAt) || x.id.localeCompare(y.id));
+        const lots = boardCityLots(project(city.label[0], city.label[1]), cityRadius(city), ordered.length, state);
+        const cx = lots.reduce((s, l) => s + l.x, 0) / Math.max(1, lots.length);
+        const cz = lots.reduce((s, l) => s + l.z, 0) / Math.max(1, lots.length);
+        ordered.forEach((base, i) => addBase(base, lots[i], { count: ordered.length, center: [cx, cz] }));
       }
+      const unassigned = members.filter(base => !base.municipalityId || !props.municipalityIndex.some(city => city.id === base.municipalityId));
+      if (unassigned.length) { const lots = baseLots(state, unassigned.length); unassigned.forEach((base, i) => addBase(base, lots[i])); }
     }
     r.draw(true);
   }, [geometryKey, props.municipalityIndex, ready]);
